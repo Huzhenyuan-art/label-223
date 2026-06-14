@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const bcrypt = require('bcryptjs');
 const {
   User,
   Post,
@@ -16,37 +17,49 @@ const {
 const config = require('../src/config');
 const logger = require('../src/utils/logger');
 
+const DEMO_PASSWORD = 'password1';
+
+const DEMO_LOGIN_ACCOUNTS = [
+  {
+    account: 'fogdao',
+    nickname: '雾岛慢声',
+    avatar: 'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=200',
+    bio: '在深夜里收集问题，也收集善意。'
+  },
+  {
+    account: 'tide_writer',
+    nickname: '潮汐写作者',
+    avatar: 'https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg?auto=compress&cs=tinysrgb&w=200',
+    bio: '喜欢把琐碎生活写成可被引用的句子。'
+  },
+  {
+    account: 'lowfreq_fan',
+    nickname: '低频乐器控',
+    avatar: 'https://images.pexels.com/photos/415829/pexels-photo-415829.jpeg?auto=compress&cs=tinysrgb&w=200',
+    bio: '迷恋冷门乐器和慢节奏对谈。'
+  },
+  {
+    account: 'calm_asker',
+    nickname: '沉静提问者',
+    avatar: 'https://images.pexels.com/photos/1704488/pexels-photo-1704488.jpeg?auto=compress&cs=tinysrgb&w=200',
+    bio: '每个问题都值得被耐心打开。'
+  }
+];
+
 const createDemoUsers = async () => {
-  return User.create([
-    {
-      openid: 'seed_user_001',
-      authProvider: 'seed',
-      nickname: '雾岛慢声',
-      avatar: 'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=200',
-      bio: '在深夜里收集问题，也收集善意。'
-    },
-    {
-      openid: 'seed_user_002',
-      authProvider: 'seed',
-      nickname: '潮汐写作者',
-      avatar: 'https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg?auto=compress&cs=tinysrgb&w=200',
-      bio: '喜欢把琐碎生活写成可被引用的句子。'
-    },
-    {
-      openid: 'seed_user_003',
-      authProvider: 'seed',
-      nickname: '低频乐器控',
-      avatar: 'https://images.pexels.com/photos/415829/pexels-photo-415829.jpeg?auto=compress&cs=tinysrgb&w=200',
-      bio: '迷恋冷门乐器和慢节奏对谈。'
-    },
-    {
-      openid: 'seed_user_004',
-      authProvider: 'seed',
-      nickname: '沉静提问者',
-      avatar: 'https://images.pexels.com/photos/1704488/pexels-photo-1704488.jpeg?auto=compress&cs=tinysrgb&w=200',
-      bio: '每个问题都值得被耐心打开。'
-    }
-  ]);
+  const passwordHash = await bcrypt.hash(DEMO_PASSWORD, 12);
+
+  return User.create(
+    DEMO_LOGIN_ACCOUNTS.map((item) => ({
+      openid: `acct:${item.account}`,
+      account: item.account,
+      passwordHash,
+      authProvider: 'password',
+      nickname: item.nickname,
+      avatar: item.avatar,
+      bio: item.bio
+    }))
+  );
 };
 
 const createOriginPosts = async (users) => {
