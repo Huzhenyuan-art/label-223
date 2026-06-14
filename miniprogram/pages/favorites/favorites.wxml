@@ -1,0 +1,26 @@
+<view class="page">
+  <view wx:if="{{loading}}" class="loading">
+    <view class="loading-spinner"></view>
+  </view>
+
+  <view wx:if="{{!loading && items.length === 0}}" class="empty">
+    <text class="empty-text">暂无收藏的物品</text>
+  </view>
+
+  <view class="item-list">
+    <view wx:for="{{items}}" wx:key="_id" class="item-card" data-id="{{item._id}}" bindtap="goToDetail">
+      <image class="item-image" src="{{item.coverImage}}" mode="aspectFill" />
+      <view class="item-content">
+        <view class="item-title ellipsis">{{item.title}}</view>
+        <view class="item-meta">
+          <text class="item-price {{item.mode === 'gift' ? 'price-free' : ''}}">{{item.priceText}}</text>
+          <text class="item-category">{{item.categoryLabel}}</text>
+        </view>
+        <view class="item-bottom">
+          <text class="publisher-name" wx:if="{{item.publisher}}">{{item.publisher.nickname}}</text>
+          <view class="remove-btn" data-id="{{item._id}}" data-index="{{index}}" catchtap="onRemoveFavorite">取消收藏</view>
+        </view>
+      </view>
+    </view>
+  </view>
+</view>

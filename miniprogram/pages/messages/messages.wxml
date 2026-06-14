@@ -1,0 +1,32 @@
+<view class="container">
+  <view class="hero-card">
+    <view class="hero-title">私密海浪</view>
+    <view class="hero-subtitle">未读 {{unreadCount}} 条，先以动态标签对话，双方同意后再揭示身份。</view>
+  </view>
+
+  <block wx:if="{{conversations.length}}">
+    <block wx:for="{{conversations}}" wx:key="conversationId">
+      <view
+        class="ocean-card conversation-item"
+        data-conversation-id="{{item.conversationId}}"
+        data-user-id="{{item.user._id}}"
+        data-name="{{item.displayName}}"
+        data-reveal="{{item.reveal.revealed}}"
+        bindtap="openChat"
+      >
+        <view class="row-between">
+          <view class="conversation-name">{{item.displayName}}</view>
+          <view class="muted">{{item.timeAgo}}</view>
+        </view>
+
+        <view class="conversation-status mt-12">{{item.revealText}}</view>
+        <view class="conversation-last mt-12">{{item.lastMessage.senderDynamicTag}}：{{item.lastMessage.content}}</view>
+
+        <view wx:if="{{item.unreadCount > 0}}" class="unread-badge">未读 {{item.unreadCount}}</view>
+      </view>
+    </block>
+  </block>
+
+  <view wx:elif="{{!loading}}" class="empty">暂无私密海浪，先去海洋流产生共鸣吧。</view>
+  <view wx:if="{{loading}}" class="empty">正在加载会话...</view>
+</view>

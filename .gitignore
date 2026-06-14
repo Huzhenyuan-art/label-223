@@ -1,0 +1,15 @@
+node_modules
+npm-debug.log
+.DS_Store
+dist
+build
+.vscode
+.idea
+*.local
+
+backend/node_modules
+backend/dist
+backend/build
+
+miniprogram/dist
+miniprogram/build

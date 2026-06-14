@@ -1,0 +1,59 @@
+.premium-badge {
+  border: 2rpx solid rgba(255, 255, 255, 0.6);
+  border-radius: 999rpx;
+  padding: 8rpx 18rpx;
+  font-size: 22rpx;
+}
+
+.interest-bubble {
+  margin-right: 16rpx;
+  margin-bottom: 16rpx;
+  padding: 8rpx 14rpx;
+  border-radius: 999rpx;
+  background: #eaf6fb;
+  color: #0a6385;
+  border: 1rpx solid #bcdce9;
+}
+
+.favorite-group {
+  margin-bottom: 18rpx;
+}
+
+.favorite-title {
+  font-size: 28rpx;
+  color: #0b6281;
+  margin-bottom: 10rpx;
+  font-weight: 600;
+}
+
+.favorite-post {
+  border: 1rpx solid #d9eaf2;
+  border-radius: 12rpx;
+  padding: 12rpx;
+  margin-bottom: 10rpx;
+}
+
+.favorite-post-title,
+.my-post-title {
+  font-weight: 600;
+}
+
+.my-post {
+  border-bottom: 1rpx solid #e0edf3;
+  padding: 14rpx 0;
+}
+
+.my-post:last-child {
+  border-bottom: none;
+}
+
+.mini-btn {
+  width: 200rpx;
+  height: 64rpx;
+  line-height: 64rpx;
+  font-size: 22rpx;
+}
+
+.login-state-card {
+  margin-top: 12rpx;
+}

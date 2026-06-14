@@ -1,0 +1,107 @@
+<view class="container">
+  <view class="hero-card">
+    <view class="hero-title">回声岛 · 海洋流</view>
+    <view class="hero-subtitle">去身份化表达，让每一次观点都被认真听见。</view>
+  </view>
+
+  <view class="ocean-card">
+    <view class="wrap">
+      <block wx:for="{{modes}}" wx:key="key">
+        <view
+          class="tag-chip {{activeMode === item.key ? 'active' : ''}}"
+          data-mode="{{item.key}}"
+          bindtap="handleModeChange"
+        >
+          {{item.label}}
+        </view>
+      </block>
+    </view>
+
+    <input
+      class="input mt-12"
+      placeholder="输入关键词，探索同频主题"
+      value="{{keyword}}"
+      bindinput="handleKeywordInput"
+    />
+
+    <input
+      class="input mt-16"
+      placeholder="输入标签，多个标签用逗号分隔"
+      value="{{tagsInput}}"
+      bindinput="handleTagsInput"
+    />
+
+    <button class="btn-secondary mt-16" bindtap="handleSearchApply">应用搜索条件</button>
+
+    <view wx:if="{{preferredTags.length}}" class="mt-16 muted">推荐依据：{{preferredTags.join('、')}}</view>
+  </view>
+
+  <view wx:if="{{activeMode === 'hot' && hotTags.length}}" class="ocean-card">
+    <view class="section-title">热点频率榜（每小时刷新）</view>
+    <view class="radar-wrap">
+      <view class="radar-ring ring-a"></view>
+      <view class="radar-ring ring-b"></view>
+      <view class="radar-ring ring-c"></view>
+      <view class="radar-core">声纳</view>
+      <block wx:for="{{radarTags}}" wx:key="tag">
+        <view class="radar-dot" style="{{item.style}}">
+          <text class="radar-text">#{{item.tag}}</text>
+        </view>
+      </block>
+    </view>
+    <block wx:for="{{hotTags}}" wx:key="tag">
+      <view class="row-between hot-item">
+        <view class="row">
+          <view class="hot-rank">#{{item.rank}}</view>
+          <view class="hot-tag">{{item.tag}}</view>
+        </view>
+        <view class="muted">热度 {{item.heat}}</view>
+      </view>
+    </block>
+  </view>
+
+  <block wx:if="{{posts.length}}">
+    <block wx:for="{{posts}}" wx:key="_id">
+      <view class="ocean-card">
+        <view class="row-between mb-16">
+          <view class="post-tag">{{item.dynamicTag}}</view>
+          <view class="muted">{{item.timeAgo}}</view>
+        </view>
+
+        <view wx:if="{{item.title}}" class="post-title">{{item.title}}</view>
+        <view class="post-content">{{item.contentText}}</view>
+
+        <image
+          wx:if="{{item.coverImage}}"
+          class="post-image mt-16"
+          src="{{item.coverImage}}"
+          mode="aspectFill"
+        />
+
+        <view class="wrap mt-16">
+          <block wx:for="{{item.tags}}" wx:key="*this">
+            <view class="tag-chip">#{{item}}</view>
+          </block>
+        </view>
+
+        <view class="row-between mt-20">
+          <view class="muted">共鸣 {{item.resonanceCount}} · 回声 {{item.commentCount}} · 合鸣 {{item.superEchoCount}}</view>
+        </view>
+
+        <view class="row mt-16 action-row">
+          <button class="btn-secondary action-btn" data-id="{{item._id}}" bindtap="handleToggleResonance">
+            {{item.isResonated ? '取消共鸣' : '共鸣'}}
+          </button>
+          <button class="btn-secondary action-btn" data-id="{{item._id}}" bindtap="handleToggleFavorite">
+            {{item.isFavorited ? '取消收藏' : '收藏'}}
+          </button>
+          <button class="btn-primary action-btn" data-id="{{item._id}}" bindtap="goDetail">查看详情</button>
+        </view>
+      </view>
+    </block>
+  </block>
+
+  <view wx:elif="{{!loading}}" class="empty">还没有符合条件的频率，试试更宽松的搜索。</view>
+
+  <view wx:if="{{loading}}" class="empty">正在加载频率中...</view>
+</view>

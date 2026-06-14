@@ -1,0 +1,90 @@
+.chat-name {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #0a5f7e;
+}
+
+.chat-state {
+  color: #0a7398;
+  font-size: 24rpx;
+}
+
+.chat-scroll {
+  height: 58vh;
+  margin-bottom: 16rpx;
+}
+
+.msg-row {
+  display: flex;
+  margin-bottom: 16rpx;
+}
+
+.msg-row.mine {
+  justify-content: flex-end;
+}
+
+.msg-row.other {
+  justify-content: flex-start;
+}
+
+.msg-bubble {
+  max-width: 78%;
+  background: #ffffff;
+  border: 2rpx solid #d4e7f0;
+  border-radius: 16rpx;
+  padding: 14rpx;
+}
+
+.msg-row.mine .msg-bubble {
+  background: #e8f6fc;
+  border-color: #b4d8e8;
+}
+
+.msg-tag {
+  font-size: 22rpx;
+  color: #0d5d7a;
+  font-weight: 600;
+}
+
+.msg-content {
+  margin-top: 4rpx;
+  word-break: break-all;
+}
+
+.msg-source {
+  margin-top: 4rpx;
+  padding: 4rpx 10rpx;
+  border-radius: 10rpx;
+  background: #f0f8fc;
+  color: #0a688b;
+  font-size: 21rpx;
+}
+
+.msg-time {
+  margin-top: 8rpx;
+  font-size: 20rpx;
+  color: #7a95a2;
+  text-align: right;
+}
+
+.input-bar {
+  background: rgba(255, 255, 255, 0.92);
+  border: 2rpx solid #d5e8f1;
+  border-radius: 18rpx;
+  padding: 14rpx;
+}
+
+.send-btn {
+  width: 160rpx;
+  margin-left: 12rpx;
+  height: 82rpx;
+  line-height: 82rpx;
+}
+
+.flex-1 {
+  flex: 1;
+}
+
+.mb-12 {
+  margin-bottom: 12rpx;
+}

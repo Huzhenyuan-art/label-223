@@ -1,0 +1,12 @@
+.public-post {
+  border-bottom: 1rpx solid #e0edf3;
+  padding: 14rpx 0;
+}
+
+.public-post:last-child {
+  border-bottom: none;
+}
+
+.public-title {
+  font-weight: 600;
+}

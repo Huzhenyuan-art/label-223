@@ -1,0 +1,51 @@
+<view class="container">
+  <view class="ocean-card">
+    <view class="row-between">
+      <view class="chat-name">{{displayName}}</view>
+      <view class="chat-state">{{reveal && reveal.revealed ? '身份已揭示' : '动态标签对话中'}}</view>
+    </view>
+
+    <view wx:if="{{reveal && !reveal.revealed}}" class="mt-12 muted">
+      你 {{reveal.myCount || 0}} 条，对方 {{reveal.otherCount || 0}} 条。双方≥3条可申请揭示。
+    </view>
+
+    <button
+      wx:if="{{reveal && reveal.eligible && !reveal.revealed}}"
+      class="btn-secondary mt-16"
+      bindtap="requestReveal"
+    >
+      申请揭示身份
+    </button>
+
+    <button
+      wx:if="{{reveal && reveal.revealed}}"
+      class="btn-secondary mt-16"
+      bindtap="openPublicProfile"
+    >
+      查看对方主页
+    </button>
+  </view>
+
+  <scroll-view class="chat-scroll" scroll-y="true" scroll-with-animation="true" scroll-into-view="{{scrollAnchor}}">
+    <block wx:for="{{list}}" wx:key="_id">
+      <view id="msg-{{item._id}}" class="msg-row {{item.mine ? 'mine' : 'other'}}">
+        <view class="msg-bubble">
+          <view class="msg-tag">{{item.senderDynamicTag}}</view>
+          <view wx:if="{{item.sourcePostLabel}}" class="msg-source">来自频率：{{item.sourcePostLabel}}</view>
+          <view class="msg-content">{{item.content}}</view>
+          <view class="msg-time">{{item.timeAgo}}</view>
+        </view>
+      </view>
+    </block>
+
+    <view wx:if="{{!list.length && !loading}}" class="empty">还没有消息，发出第一条海浪吧。</view>
+  </scroll-view>
+
+  <view class="input-bar">
+    <input class="input mb-12" placeholder="发送身份标签" value="{{senderDynamicTag}}" data-key="senderDynamicTag" bindinput="bindField" />
+    <view class="row">
+      <input class="input flex-1" placeholder="输入消息内容" value="{{content}}" data-key="content" bindinput="bindField" />
+      <button class="btn-primary send-btn" bindtap="sendMessage">发送</button>
+    </view>
+  </view>
+</view>

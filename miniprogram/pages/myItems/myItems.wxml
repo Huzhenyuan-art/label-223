@@ -1,0 +1,30 @@
+<view class="page">
+  <view wx:if="{{loading}}" class="loading">
+    <view class="loading-spinner"></view>
+  </view>
+
+  <view wx:if="{{!loading && items.length === 0}}" class="empty">
+    <text class="empty-text">暂无发布的物品</text>
+    <navigator url="/pages/publish/publish" open-type="switchTab" class="empty-action">去发布</navigator>
+  </view>
+
+  <view class="item-list">
+    <view wx:for="{{items}}" wx:key="_id" class="item-card" data-id="{{item._id}}" bindtap="goToDetail">
+      <image class="item-image" src="{{item.coverImage}}" mode="aspectFill" />
+      <view class="item-content">
+        <view class="item-title ellipsis">{{item.title}}</view>
+        <view class="item-meta">
+          <text class="item-price {{item.mode === 'gift' ? 'price-free' : ''}}">{{item.priceText}}</text>
+          <text class="item-status status-{{item.status}}">{{item.statusText}}</text>
+        </view>
+        <view class="item-bottom">
+          <text class="item-time">{{item.timeText}}</text>
+          <view class="action-group">
+            <view class="edit-btn" data-index="{{index}}" catchtap="onEdit">编辑</view>
+            <view class="delete-btn" data-id="{{item._id}}" data-index="{{index}}" catchtap="onDelete">删除</view>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+</view>

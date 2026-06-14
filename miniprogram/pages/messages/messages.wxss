@@ -1,0 +1,30 @@
+.conversation-item {
+  position: relative;
+}
+
+.conversation-name {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #0d5876;
+}
+
+.conversation-status {
+  color: #0c6f93;
+  font-size: 24rpx;
+}
+
+.conversation-last {
+  color: #365260;
+  word-break: break-all;
+}
+
+.unread-badge {
+  position: absolute;
+  right: 20rpx;
+  bottom: 20rpx;
+  background: #0d6587;
+  color: #ffffff;
+  border-radius: 999rpx;
+  padding: 6rpx 16rpx;
+  font-size: 22rpx;
+}

@@ -1,0 +1,25 @@
+<view class="container" wx:if="{{profile}}">
+  <view class="hero-card">
+    <view class="hero-title">{{profile.nickname}}</view>
+    <view class="hero-subtitle">{{profile.bio || '这个人很安静，但正在表达。'}}</view>
+  </view>
+
+  <view class="ocean-card">
+    <view class="section-title">TA 的公开频率</view>
+    <block wx:if="{{posts.length}}">
+      <block wx:for="{{posts}}" wx:key="_id">
+        <view class="public-post" data-id="{{item._id}}" bindtap="goDetail">
+          <view class="row-between">
+            <view class="public-title">{{item.title || item.dynamicTag}}</view>
+            <view class="muted">{{item.timeAgo}}</view>
+          </view>
+          <view class="muted mt-12">{{item.contentText}}</view>
+          <view class="muted mt-12">共鸣 {{item.resonanceCount}} · 回声 {{item.commentCount}} · 合鸣 {{item.superEchoCount}}</view>
+        </view>
+      </block>
+    </block>
+    <view wx:else class="muted">暂无公开频率。</view>
+  </view>
+</view>
+
+<view wx:elif="{{loading}}" class="empty">正在加载公开主页...</view>

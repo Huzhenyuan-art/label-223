@@ -1,0 +1,185 @@
+<view class="container">
+  <view class="hero-card">
+    <view class="hero-title">频率会员订阅</view>
+    <view class="hero-subtitle">
+      {{premium && premium.isActive ? ('当前方案：' + premium.planText + '，到期：' + premium.expireAtText) : '开通后可获得标签皮肤、洞察报告和私有小组。'}}
+    </view>
+  </view>
+
+  <view class="ocean-card">
+    <view class="section-title">标签皮肤</view>
+    <view class="wrap">
+      <block wx:for="{{skins}}" wx:key="key">
+        <view class="tag-chip {{selectedSkin === item.key ? 'active' : ''}}" data-skin="{{item.key}}" bindtap="selectSkin">
+          {{item.label}}
+        </view>
+      </block>
+    </view>
+    <button class="btn-secondary mt-16" bindtap="applySkin" loading="{{applyingSkin}}">应用当前皮肤</button>
+  </view>
+
+  <view class="ocean-card">
+    <view class="section-title">数据洞察报告（近30天）</view>
+    <view wx:if="{{insight}}">
+      <view class="stat-grid">
+        <view class="stat-item">
+          <view class="stat-value">{{insight.summary.postCount30d}}</view>
+          <view class="muted">发帖数</view>
+        </view>
+        <view class="stat-item">
+          <view class="stat-value">{{insight.summary.resonanceGiven30d}}</view>
+          <view class="muted">给出共鸣</view>
+        </view>
+        <view class="stat-item">
+          <view class="stat-value">{{insight.summary.resonanceReceived30d}}</view>
+          <view class="muted">收到共鸣</view>
+        </view>
+        <view class="stat-item">
+          <view class="stat-value">{{insight.summary.commentGiven30d}}</view>
+          <view class="muted">发送回声</view>
+        </view>
+      </view>
+
+      <view class="muted mt-16">高频兴趣标签</view>
+      <view class="wrap mt-12">
+        <block wx:for="{{insight.topTags}}" wx:key="tag">
+          <view class="tag-chip">#{{item.tag}}（{{item.score}}）</view>
+        </block>
+      </view>
+    </view>
+    <view wx:else class="muted">暂无洞察数据。</view>
+  </view>
+
+  <view class="ocean-card">
+    <view class="section-title">私人小组创建权</view>
+    <input class="input mb-16" placeholder="小组名称" value="{{groupName}}" data-key="groupName" bindinput="bindField" />
+    <input class="input mb-16" placeholder="小组主题" value="{{groupTheme}}" data-key="groupTheme" bindinput="bindField" />
+    <textarea class="textarea" placeholder="小组简介（可选）" value="{{groupDesc}}" data-key="groupDesc" bindinput="bindField" />
+    <button class="btn-primary mt-16" bindtap="createPrivateGroup" loading="{{creatingGroup}}">创建私人小组</button>
+
+    <view class="mt-20 muted">我的私人小组</view>
+    <block wx:if="{{privateGroups.length}}">
+      <block wx:for="{{privateGroups}}" wx:key="_id">
+        <view class="group-item">
+          <view class="row-between">
+            <view class="group-name">{{item.name}}</view>
+            <view class="muted">{{item.theme}}</view>
+          </view>
+          <view class="muted mt-12">{{item.description || '暂无简介'}}</view>
+        </view>
+      </block>
+    </block>
+    <view wx:else class="muted">还没有创建私人小组。</view>
+  </view>
+
+  <view class="ocean-card">
+    <view class="section-title">可选方案</view>
+    <block wx:for="{{plans}}" wx:key="key">
+      <view class="plan-item">
+        <view class="row-between">
+          <view class="plan-title">{{item.name}}</view>
+          <view class="plan-price">¥{{item.price}}</view>
+        </view>
+        <view class="muted mt-12">有效期 {{item.durationDays}} 天</view>
+        <view class="wrap mt-12">
+          <block wx:for="{{item.features}}" wx:key="*this">
+            <view class="tag-chip">{{item}}</view>
+          </block>
+        </view>
+        <button
+          class="btn-primary mt-16"
+          data-plan="{{item.key}}"
+          bindtap="pay"
+          loading="{{payingPlan === item.key}}"
+        >
+          立即支付开通
+        </button>
+      </view>
+    </block>
+  </view>
+
+  <view class="ocean-card">
+    <view class="section-title">支付记录</view>
+    <block wx:if="{{orders.length}}">
+      <block wx:for="{{orders}}" wx:key="orderNo">
+        <view class="order-item">
+          <view class="row-between">
+            <view>{{item.orderNo}}</view>
+            <view class="order-status">{{item.statusText}}</view>
+          </view>
+          <view class="muted mt-12">{{item.planText}} · ¥{{item.amount}} · {{item.timeAgo}}</view>
+        </view>
+      </block>
+    </block>
+    <view wx:else class="muted">暂无支付记录。</view>
+  </view>
+
+  <view class="ocean-card">
+    <view class="section-title">内容衍生品</view>
+    <block wx:if="{{derivatives.length}}">
+      <block wx:for="{{derivatives}}" wx:key="_id">
+        <view class="derivative-item">
+          <view class="row-between">
+            <view class="derivative-title">{{item.title}}</view>
+            <view class="plan-price">¥{{item.price}}</view>
+          </view>
+          <view class="muted mt-12">{{item.summary}}</view>
+          <view class="row-between mt-12">
+            <view class="muted">意向待购 {{item.waitlistCount}}</view>
+            <view class="muted">{{item.joined ? '已登记' : '开放登记中'}}</view>
+          </view>
+          <view class="wrap mt-12">
+            <block wx:for="{{item.tags}}" wx:key="*this">
+              <view class="tag-chip">#{{item}}</view>
+            </block>
+          </view>
+          <button
+            class="btn-secondary mt-16 {{item.joined ? 'btn-disabled' : ''}}"
+            data-id="{{item._id}}"
+            bindtap="joinDerivativeWaitlist"
+            disabled="{{item.joined}}"
+            loading="{{submittingDerivativeId === item._id}}"
+          >
+            {{item.joined ? '已加入待购清单' : '加入待购清单'}}
+          </button>
+        </view>
+      </block>
+    </block>
+    <view wx:else class="muted">暂无衍生品内容。</view>
+  </view>
+
+  <view class="ocean-card">
+    <view class="section-title">品牌频率营地</view>
+    <block wx:if="{{camps.length}}">
+      <block wx:for="{{camps}}" wx:key="_id">
+        <view class="camp-item">
+          <view class="row-between">
+            <view class="camp-title">{{item.organization}}</view>
+            <view class="camp-fee">¥{{item.cycleFee}} / {{item.cycleText}}</view>
+          </view>
+          <view class="camp-theme mt-12">{{item.theme}}</view>
+          <view class="muted mt-12">{{item.description}}</view>
+          <view class="row-between mt-12">
+            <view class="muted">咨询中 {{item.inquiryCount}}</view>
+            <view class="muted">{{item.inquired ? '顾问已收到' : '支持品牌入驻咨询'}}</view>
+          </view>
+          <view class="wrap mt-12">
+            <block wx:for="{{item.tags}}" wx:key="*this">
+              <view class="tag-chip">#{{item}}</view>
+            </block>
+          </view>
+          <button
+            class="btn-secondary mt-16 {{item.inquired ? 'btn-disabled' : ''}}"
+            data-id="{{item._id}}"
+            bindtap="createCampInquiry"
+            disabled="{{item.inquired}}"
+            loading="{{submittingCampId === item._id}}"
+          >
+            {{item.inquired ? '已提交入驻咨询' : '提交入驻咨询'}}
+          </button>
+        </view>
+      </block>
+    </block>
+    <view wx:else class="muted">暂无营地项目。</view>
+  </view>
+</view>

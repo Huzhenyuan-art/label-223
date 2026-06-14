@@ -1,0 +1,110 @@
+<view class="container" wx:if="{{isLoggedIn && profile}}">
+  <view class="hero-card">
+    <view class="row-between">
+      <view>
+        <view class="hero-title">{{profile.nickname}}</view>
+        <view class="hero-subtitle">{{profile.bio || '在回声岛持续记录思考轨迹。'}}</view>
+        <view class="hero-subtitle mt-12">当前标签皮肤：{{profile.tagSkin || 'ocean'}}</view>
+      </view>
+      <view class="premium-badge">{{profile.premium.isActive ? '会员中' : '普通用户'}}</view>
+    </view>
+  </view>
+
+  <view class="ocean-card" wx:if="{{metrics}}">
+    <view class="section-title">成长指标</view>
+    <view class="stat-grid">
+      <view class="stat-item">
+        <view class="stat-value">{{metrics.resonanceIndex}}</view>
+        <view class="muted">共鸣指数</view>
+      </view>
+      <view class="stat-item">
+        <view class="stat-value">{{metrics.resonanceReceived}}</view>
+        <view class="muted">收到共鸣</view>
+      </view>
+      <view class="stat-item">
+        <view class="stat-value">{{metrics.authoredCount}}</view>
+        <view class="muted">发射频率</view>
+      </view>
+      <view class="stat-item">
+        <view class="stat-value">{{metrics.superEchoCount}}</view>
+        <view class="muted">合鸣创作</view>
+      </view>
+    </view>
+  </view>
+
+  <view class="ocean-card">
+    <view class="section-title">兴趣星云图</view>
+    <view class="wrap" wx:if="{{interestMap.length}}">
+      <block wx:for="{{interestMap}}" wx:key="tag">
+        <view class="interest-bubble" style="font-size: {{item.size}}rpx;">
+          #{{item.tag}}
+        </view>
+      </block>
+    </view>
+    <view wx:else class="muted">持续互动后会生成你的兴趣星云。</view>
+  </view>
+
+  <view class="ocean-card">
+    <view class="row-between mb-16">
+      <view class="section-title">收藏夹（按标签）</view>
+      <button class="btn-secondary mini-btn" bindtap="goMemberPage">会员中心</button>
+    </view>
+
+    <block wx:if="{{favoritesByTag.length}}">
+      <block wx:for="{{favoritesByTag}}" wx:key="tag">
+        <view class="favorite-group">
+          <view class="favorite-title">#{{item.tag}}（{{item.count}}）</view>
+          <block wx:for="{{item.posts}}" wx:key="_id">
+            <view class="favorite-post" data-id="{{item._id}}" bindtap="goDetail">
+              <view class="favorite-post-title">{{item.title || item.dynamicTag}}</view>
+              <view class="muted">{{item.contentText}}</view>
+            </view>
+          </block>
+        </view>
+      </block>
+    </block>
+    <view wx:else class="muted">你还没有收藏内容。</view>
+  </view>
+
+  <view class="ocean-card">
+    <view class="section-title">我的频率</view>
+    <block wx:if="{{myPosts.length}}">
+      <block wx:for="{{myPosts}}" wx:key="_id">
+        <view class="my-post" data-id="{{item._id}}" bindtap="goDetail">
+          <view class="row-between">
+            <view class="my-post-title">{{item.title || item.dynamicTag}}</view>
+            <view class="muted">{{item.timeAgo}}</view>
+          </view>
+          <view class="muted mt-12">共鸣 {{item.resonanceCount}} · 回声 {{item.commentCount}} · 合鸣 {{item.superEchoCount}}</view>
+        </view>
+      </block>
+    </block>
+    <view wx:else class="muted">你还没有发射频率。</view>
+  </view>
+
+  <button class="btn-secondary" bindtap="logout">退出登录</button>
+</view>
+
+<view class="container" wx:elif="{{!isLoggedIn}}">
+  <view class="hero-card">
+    <view class="hero-title">岛屿空间</view>
+    <view class="hero-subtitle">登录或注册后可查看你的共鸣指数、兴趣星云与收藏夹。</view>
+  </view>
+
+  <view class="ocean-card login-state-card">
+    <view class="section-title">你还没有登录</view>
+    <view class="muted">请先登录或注册账号，再进入你的个人岛屿。</view>
+    <button class="btn-primary mt-20" bindtap="goLogin">登录 / 注册</button>
+  </view>
+</view>
+
+<view wx:elif="{{loading}}" class="empty">正在加载岛屿空间...</view>
+<view class="container" wx:elif="{{isLoggedIn && loadFailed}}">
+  <view class="ocean-card login-state-card">
+    <view class="section-title">岛屿数据加载失败</view>
+    <view class="muted">请检查后端服务连接后重试。</view>
+    <button class="btn-primary mt-20" bindtap="retryLoad">重试加载</button>
+  </view>
+</view>
+
+<view wx:else class="empty">暂无岛屿数据，先去海洋流互动吧。</view>

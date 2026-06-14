@@ -1,0 +1,88 @@
+<view class="container" wx:if="{{post}}">
+  <view class="ocean-card">
+    <view class="row-between mb-16">
+      <view class="post-tag">{{post.dynamicTag}}</view>
+      <view class="muted">{{post.timeAgo}}</view>
+    </view>
+
+    <view wx:if="{{post.title}}" class="post-title">{{post.title}}</view>
+    <view class="post-content">{{post.contentText}}</view>
+
+    <image wx:if="{{post.coverImage}}" class="post-image mt-16" src="{{post.coverImage}}" mode="aspectFill"></image>
+
+    <view wx:if="{{post.contentAudio}}" class="audio-hint mt-16">音频链接：{{post.contentAudio}}</view>
+    <view wx:if="{{post.contentLink}}" class="audio-hint mt-12">外部链接：{{post.contentLink}}</view>
+
+    <view class="wrap mt-16">
+      <block wx:for="{{post.tags}}" wx:key="*this">
+        <view class="tag-chip">#{{item}}</view>
+      </block>
+    </view>
+
+    <view class="muted mt-16">共鸣 {{post.resonanceCount}} · 回声 {{post.commentCount}} · 合鸣 {{post.superEchoCount}}</view>
+
+    <view class="row mt-16 action-row">
+      <button class="btn-secondary action-btn" bindtap="handleToggleResonance">
+        {{post.isResonated ? '取消共鸣' : '共鸣'}}
+      </button>
+      <button class="btn-secondary action-btn" bindtap="handleToggleFavorite">
+        {{post.isFavorited ? '取消收藏' : '收藏'}}
+      </button>
+    </view>
+  </view>
+
+  <view class="ocean-card">
+    <view class="section-title">发送回声</view>
+    <input class="input mb-16" placeholder="你的动态标签" value="{{commentTag}}" data-key="commentTag" bindinput="bindField" />
+    <textarea class="textarea" placeholder="写下你认同或补充的观点" value="{{commentContent}}" data-key="commentContent" bindinput="bindField" />
+    <button class="btn-primary mt-16" bindtap="submitComment">发送回声</button>
+  </view>
+
+  <view class="ocean-card">
+    <view class="section-title">合鸣再创作</view>
+    <input class="input mb-16" placeholder="你的动态标签" value="{{echoTag}}" data-key="echoTag" bindinput="bindField" />
+    <input class="input mb-16" placeholder="合鸣标签，逗号分隔" value="{{echoTagsInput}}" data-key="echoTagsInput" bindinput="bindField" />
+    <textarea class="textarea" placeholder="补充、延伸或反驳原文观点" value="{{echoContent}}" data-key="echoContent" bindinput="bindField" />
+    <button class="btn-primary mt-16" bindtap="submitSuperEcho">加入合鸣谱系</button>
+  </view>
+
+  <view class="ocean-card" wx:if="{{!isOwnPost}}">
+    <view class="section-title">私密海浪</view>
+    <view class="muted">对该内容产生深度共鸣后，可向作者发送动态标签私信。</view>
+    <view wx:if="{{!post.isResonated}}" class="warn-text mt-12">请先点击“共鸣”，再发出第一条私密海浪。</view>
+    <input class="input mt-16 mb-16" placeholder="你的私信动态标签" value="{{waveTag}}" data-key="waveTag" bindinput="bindField" />
+    <textarea class="textarea" placeholder="写下你想继续交流的内容" value="{{waveContent}}" data-key="waveContent" bindinput="bindField" />
+    <button class="btn-primary mt-16" bindtap="sendPrivateWave" disabled="{{!post.isResonated}}" loading="{{waveSending}}">发送私密海浪</button>
+  </view>
+
+  <view class="ocean-card">
+    <view class="section-title">合鸣谱系树</view>
+    <block wx:if="{{treeLines.length}}">
+      <block wx:for="{{treeLines}}" wx:key="id">
+        <view class="tree-line" style="margin-left: {{item.depth * 28}}rpx;">
+          <view class="tree-tag">{{item.dynamicTag}}</view>
+          <view class="tree-content">{{item.contentText}}</view>
+        </view>
+      </block>
+    </block>
+    <view wx:else class="muted">暂时还没有合鸣分支。</view>
+  </view>
+
+  <view class="ocean-card">
+    <view class="section-title">回声讨论</view>
+    <block wx:if="{{comments.length}}">
+      <block wx:for="{{comments}}" wx:key="_id">
+        <view class="comment-item">
+          <view class="row-between">
+            <view class="tree-tag">{{item.dynamicTag}}</view>
+            <view class="muted">{{item.timeAgo}}</view>
+          </view>
+          <view class="comment-content">{{item.content}}</view>
+        </view>
+      </block>
+    </block>
+    <view wx:else class="muted">还没有回声，成为第一个回应的人。</view>
+  </view>
+</view>
+
+<view wx:elif="{{loading}}" class="empty">正在加载频率详情...</view>

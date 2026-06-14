@@ -1,0 +1,54 @@
+{
+  "pages": [
+    "pages/index/index",
+    "pages/publish/publish",
+    "pages/messages/messages",
+    "pages/profile/profile",
+    "pages/detail/detail",
+    "pages/chat/chat",
+    "pages/member/member",
+    "pages/publicProfile/publicProfile",
+    "pages/login/login"
+  ],
+  "window": {
+    "backgroundTextStyle": "dark",
+    "navigationBarBackgroundColor": "#0C2A3A",
+    "navigationBarTitleText": "回声岛",
+    "navigationBarTextStyle": "white",
+    "backgroundColor": "#F1F7FA"
+  },
+  "tabBar": {
+    "color": "#6E8794",
+    "selectedColor": "#0A5C7A",
+    "backgroundColor": "#FFFFFF",
+    "borderStyle": "black",
+    "list": [
+      {
+        "pagePath": "pages/index/index",
+        "text": "海洋流",
+        "iconPath": "images/tab-home.png",
+        "selectedIconPath": "images/tab-home-active.png"
+      },
+      {
+        "pagePath": "pages/publish/publish",
+        "text": "发射",
+        "iconPath": "images/tab-publish.png",
+        "selectedIconPath": "images/tab-publish-active.png"
+      },
+      {
+        "pagePath": "pages/messages/messages",
+        "text": "海浪",
+        "iconPath": "images/tab-message.png",
+        "selectedIconPath": "images/tab-message-active.png"
+      },
+      {
+        "pagePath": "pages/profile/profile",
+        "text": "岛屿",
+        "iconPath": "images/tab-profile.png",
+        "selectedIconPath": "images/tab-profile-active.png"
+      }
+    ]
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json"
+}

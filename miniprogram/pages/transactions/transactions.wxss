@@ -1,0 +1,155 @@
+.page {
+  min-height: 100vh;
+  background-color: #F3F4F6;
+  padding: 24rpx;
+}
+
+.transaction-list {
+  display: flex;
+  flex-direction: column;
+  gap: 20rpx;
+}
+
+.transaction-card {
+  background-color: #FFFFFF;
+  border-radius: 16rpx;
+  padding: 24rpx;
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.05);
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20rpx;
+}
+
+.transaction-time {
+  font-size: 24rpx;
+  color: #9CA3AF;
+}
+
+.transaction-status {
+  font-size: 24rpx;
+  padding: 4rpx 16rpx;
+  border-radius: 8rpx;
+}
+
+.status-pending {
+  background-color: #FEF3C7;
+  color: #D97706;
+}
+
+.status-completed {
+  background-color: #D1FAE5;
+  color: #059669;
+}
+
+.status-cancelled {
+  background-color: #F3F4F6;
+  color: #9CA3AF;
+}
+
+.card-body {
+  display: flex;
+  align-items: center;
+  padding-bottom: 20rpx;
+  border-bottom: 2rpx solid #F3F4F6;
+}
+
+.item-image {
+  width: 120rpx;
+  height: 120rpx;
+  border-radius: 12rpx;
+  flex-shrink: 0;
+  background-color: #F3F4F6;
+}
+
+.item-info {
+  flex: 1;
+  margin-left: 20rpx;
+}
+
+.item-title {
+  font-size: 28rpx;
+  font-weight: 500;
+  color: #1F2937;
+  display: block;
+}
+
+.item-mode {
+  font-size: 22rpx;
+  color: #6B7280;
+  margin-top: 8rpx;
+  display: block;
+}
+
+.item-price {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #EF4444;
+  margin-top: 8rpx;
+  display: block;
+}
+
+.item-price.price-free {
+  color: #10B981;
+  font-size: 26rpx;
+}
+
+.card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 20rpx;
+}
+
+.other-user {
+  font-size: 24rpx;
+  color: #6B7280;
+}
+
+.role-label {
+  color: #9CA3AF;
+}
+
+.actions {
+  display: flex;
+  gap: 16rpx;
+}
+
+.action-complete {
+  font-size: 24rpx;
+  color: #FFFFFF;
+  background: linear-gradient(135deg, #6366F1 0%, #4F46E5 100%);
+  padding: 8rpx 24rpx;
+  border-radius: 8rpx;
+}
+
+.action-complete:active {
+  opacity: 0.9;
+}
+
+.action-cancel {
+  font-size: 24rpx;
+  color: #6B7280;
+  background-color: #F3F4F6;
+  padding: 8rpx 24rpx;
+  border-radius: 8rpx;
+}
+
+.action-cancel:active {
+  background-color: #E5E7EB;
+}
+
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 120rpx 0;
+}
+
+.empty-text {
+  color: #9CA3AF;
+  font-size: 28rpx;
+}

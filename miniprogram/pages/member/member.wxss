@@ -1,0 +1,86 @@
+.plan-item {
+  border: 1rpx solid #d8eaf2;
+  border-radius: 16rpx;
+  padding: 16rpx;
+  margin-bottom: 16rpx;
+}
+
+.plan-item:last-child {
+  margin-bottom: 0;
+}
+
+.plan-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #0c5f7f;
+}
+
+.plan-price {
+  font-size: 32rpx;
+  font-weight: 700;
+  color: #0b7aa2;
+}
+
+.order-item {
+  border-bottom: 1rpx solid #e0edf3;
+  padding: 14rpx 0;
+}
+
+.order-item:last-child {
+  border-bottom: none;
+}
+
+.order-status {
+  color: #0a6f94;
+  font-weight: 600;
+}
+
+.derivative-item,
+.camp-item {
+  border: 1rpx solid #d8eaf2;
+  border-radius: 16rpx;
+  padding: 16rpx;
+  margin-bottom: 16rpx;
+}
+
+.derivative-item:last-child,
+.camp-item:last-child {
+  margin-bottom: 0;
+}
+
+.derivative-title,
+.camp-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #0b6281;
+}
+
+.camp-fee {
+  color: #0a7197;
+  font-weight: 600;
+}
+
+.camp-theme {
+  color: #125a74;
+  font-size: 26rpx;
+  font-weight: 600;
+}
+
+.group-item {
+  border: 1rpx solid #d9e9f2;
+  border-radius: 14rpx;
+  padding: 14rpx;
+  margin-top: 12rpx;
+}
+
+.group-name {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #0c5f7f;
+}
+
+.btn-disabled {
+  opacity: 0.75;
+  background: #e5edf2;
+  color: #648290;
+}

@@ -1,0 +1,38 @@
+<view class="page">
+  <view wx:if="{{loading}}" class="loading">
+    <view class="loading-spinner"></view>
+  </view>
+
+  <view wx:if="{{!loading && transactions.length === 0}}" class="empty">
+    <text class="empty-text">暂无交易记录</text>
+  </view>
+
+  <view class="transaction-list">
+    <view wx:for="{{transactions}}" wx:key="_id" class="transaction-card">
+      <view class="card-header">
+        <text class="transaction-time">{{item.timeText}}</text>
+        <text class="transaction-status status-{{item.status}}">{{item.statusText}}</text>
+      </view>
+      
+      <view class="card-body">
+        <image class="item-image" src="{{item.itemImage}}" mode="aspectFill" />
+        <view class="item-info">
+          <text class="item-title ellipsis">{{item.itemTitle}}</text>
+          <text class="item-mode">{{item.modeLabel}}</text>
+          <text class="item-price {{item.mode === 'gift' ? 'price-free' : ''}}">{{item.priceText}}</text>
+        </view>
+      </view>
+
+      <view class="card-footer">
+        <view class="other-user">
+          <text class="role-label">{{item.isSeller ? '买家' : '卖家'}}: </text>
+          <text>{{item.otherUser.nickname}}</text>
+        </view>
+        <view class="actions" wx:if="{{item.status === 'pending'}}">
+          <view wx:if="{{item.isSeller}}" class="action-complete" data-id="{{item._id}}" bindtap="onComplete">确认完成</view>
+          <view class="action-cancel" data-id="{{item._id}}" bindtap="onCancel">取消</view>
+        </view>
+      </view>
+    </view>
+  </view>
+</view>

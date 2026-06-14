@@ -1,0 +1,71 @@
+<view class="container">
+  <view class="hero-card">
+    <view class="hero-title">找到你的频率</view>
+    <view class="hero-subtitle">注册后即可发帖、收藏、私信和开通会员权益，进入一个不靠身份排名的社区。</view>
+  </view>
+
+  <view class="ocean-card form-card">
+    <view class="mode-switch">
+      <view
+        class="mode-pill {{mode === 'login' ? 'active' : ''}}"
+        data-mode="login"
+        bindtap="switchMode"
+      >
+        登录
+      </view>
+      <view
+        class="mode-pill {{mode === 'register' ? 'active' : ''}}"
+        data-mode="register"
+        bindtap="switchMode"
+      >
+        注册
+      </view>
+    </view>
+
+    <view class="section-title">{{mode === 'login' ? '账号登录' : '创建账号'}}</view>
+    <view class="muted form-tip">
+      {{mode === 'login' ? '使用你的回声岛账号继续交流。' : '账号注册成功后会自动登录，并生成你的个人岛屿。'}}
+    </view>
+
+    <input
+      wx:if="{{mode === 'register'}}"
+      class="input mb-16"
+      placeholder="请输入昵称"
+      value="{{nickname}}"
+      data-key="nickname"
+      bindinput="bindField"
+      maxlength="20"
+    />
+    <input
+      class="input mb-16"
+      placeholder="请输入账号（4-24 位）"
+      value="{{account}}"
+      data-key="account"
+      bindinput="bindField"
+      maxlength="24"
+    />
+    <input
+      class="input {{mode === 'register' ? 'mb-16' : ''}}"
+      placeholder="请输入密码"
+      value="{{password}}"
+      data-key="password"
+      bindinput="bindField"
+      password="{{true}}"
+      maxlength="64"
+    />
+    <input
+      wx:if="{{mode === 'register'}}"
+      class="input"
+      placeholder="请再次输入密码"
+      value="{{confirmPassword}}"
+      data-key="confirmPassword"
+      bindinput="bindField"
+      password="{{true}}"
+      maxlength="64"
+    />
+    <button class="btn-primary mt-20" bindtap="submitAuth" loading="{{submitting}}">
+      {{mode === 'login' ? '登录并进入' : '注册并进入'}}
+    </button>
+    <view class="form-note">账号需 4-24 位字母、数字或下划线，密码至少 8 位且包含字母和数字。</view>
+  </view>
+</view>
