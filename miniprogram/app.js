@@ -54,6 +54,10 @@ App({
   },
 
   async _refreshUnreadCount() {
+    return this.refreshUnreadCount();
+  },
+
+  async refreshUnreadCount() {
     try {
       const data = await request.get(config.API.UNREAD_COUNT);
       const count = data?.count || 0;
@@ -63,8 +67,9 @@ App({
       } else {
         wx.removeTabBarBadge({ index: 2 });
       }
+      return count;
     } catch (e) {
-      // silent
+      return 0;
     }
   },
 

@@ -2,6 +2,7 @@ const request = require('../../utils/request');
 const config = require('../../config/index');
 const socket = require('../../utils/socket');
 const { ensureLogin, formatTimeAgo, showFriendlyError } = require('../../utils/util');
+const app = getApp();
 
 Page({
   data: {
@@ -88,6 +89,15 @@ Page({
         conversations: list,
         unreadCount: unread?.count || 0
       });
+
+      if (app) {
+        app.globalData.unreadCount = unread?.count || 0;
+        if ((unread?.count || 0) > 0) {
+          wx.setTabBarBadge({ index: 2, text: String(unread.count > 99 ? '99+' : unread.count) });
+        } else {
+          wx.removeTabBarBadge({ index: 2 });
+        }
+      }
     } catch (error) {
       showFriendlyError(error, '消息列表加载失败，请稍后重试');
     } finally {

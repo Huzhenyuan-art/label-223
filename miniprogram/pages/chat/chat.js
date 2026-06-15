@@ -2,6 +2,7 @@ const request = require('../../utils/request');
 const config = require('../../config/index');
 const socket = require('../../utils/socket');
 const { ensureLogin, formatTimeAgo, showFriendlyError } = require('../../utils/util');
+const app = getApp();
 
 Page({
   data: {
@@ -82,6 +83,9 @@ Page({
       });
 
       this._sendReadAck();
+      if (app && typeof app.refreshUnreadCount === 'function') {
+        app.refreshUnreadCount();
+      }
     };
 
     const onStateChange = () => {
@@ -160,6 +164,9 @@ Page({
       }
 
       this._sendReadAck();
+      if (app && typeof app.refreshUnreadCount === 'function') {
+        app.refreshUnreadCount();
+      }
     } catch (error) {
       showFriendlyError(error, '对话加载失败，请稍后重试');
     } finally {
