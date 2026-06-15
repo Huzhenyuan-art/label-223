@@ -41,6 +41,7 @@ Page({
       return;
     }
     this.loadMessages();
+    this._sendReadAck();
     this._updateWsState();
   },
 
@@ -49,6 +50,7 @@ Page({
   },
 
   onUnload() {
+    this._sendReadAck();
     this._unbindSocketEvents();
   },
 
@@ -83,9 +85,6 @@ Page({
       });
 
       this._sendReadAck();
-      if (app && typeof app.refreshUnreadCount === 'function') {
-        app.refreshUnreadCount();
-      }
     };
 
     const onStateChange = () => {
@@ -100,18 +99,31 @@ Page({
       }
     };
 
-    this._socketHandlers = { onMessage, onStateChange, onReveal };
+    const onReadAck = (data) => {
+      if (!data || data.conversationId !== this.data.conversationId) return;
+      const list = this.data.list.map((item) => {
+        if (item.mine && !item.read) {
+          return { ...item, read: true };
+        }
+        return item;
+      });
+      this.setData({ list });
+    };
+
+    this._socketHandlers = { onMessage, onStateChange, onReveal, onReadAck };
 
     socket.on('message', onMessage);
     socket.on('stateChange', onStateChange);
     socket.on('reveal', onReveal);
+    socket.on('readAck', onReadAck);
   },
 
   _unbindSocketEvents() {
-    const { onMessage, onStateChange, onReveal } = this._socketHandlers;
+    const { onMessage, onStateChange, onReveal, onReadAck } = this._socketHandlers;
     socket.off('message', onMessage);
     socket.off('stateChange', onStateChange);
     socket.off('reveal', onReveal);
+    socket.off('readAck', onReadAck);
     this._socketHandlers = {};
   },
 
@@ -164,9 +176,6 @@ Page({
       }
 
       this._sendReadAck();
-      if (app && typeof app.refreshUnreadCount === 'function') {
-        app.refreshUnreadCount();
-      }
     } catch (error) {
       showFriendlyError(error, '对话加载失败，请稍后重试');
     } finally {

@@ -19,6 +19,7 @@ Page({
     }
     this.loadAll();
     this._bindSocketEvents();
+    this._syncUnreadFromApp();
   },
 
   onHide() {
@@ -29,14 +30,24 @@ Page({
     this._unbindSocketEvents();
   },
 
+  _syncUnreadFromApp() {
+    if (!app) return;
+    const { unreadCount, unreadConversations } = app.globalData;
+    this.setData({ unreadCount });
+    this._applyConversationUnreads(unreadConversations);
+  },
+
+  _applyConversationUnreads(conversations) {
+    if (!conversations || !Object.keys(conversations).length) return;
+    const list = this.data.conversations.map((item) => {
+      const count = conversations[item.conversationId] || 0;
+      return { ...item, unreadCount: count };
+    });
+    this.setData({ conversations: list });
+  },
+
   _bindSocketEvents() {
-    const onMessage = (msg) => {
-      if (!msg) return;
-
-      this.setData({
-        unreadCount: this.data.unreadCount + 1
-      });
-
+    const onMessage = () => {
       this.loadAll();
     };
 
@@ -48,18 +59,26 @@ Page({
       this.loadAll();
     };
 
-    this._socketHandlers = { onMessage, onReadAck, onReveal };
+    const onUnread = (data) => {
+      if (!data) return;
+      this.setData({ unreadCount: data.total || 0 });
+      this._applyConversationUnreads(data.conversations || {});
+    };
+
+    this._socketHandlers = { onMessage, onReadAck, onReveal, onUnread };
 
     socket.on('message', onMessage);
     socket.on('readAck', onReadAck);
     socket.on('reveal', onReveal);
+    socket.on('unread', onUnread);
   },
 
   _unbindSocketEvents() {
-    const { onMessage, onReadAck, onReveal } = this._socketHandlers;
+    const { onMessage, onReadAck, onReveal, onUnread } = this._socketHandlers;
     socket.off('message', onMessage);
     socket.off('readAck', onReadAck);
     socket.off('reveal', onReveal);
+    socket.off('unread', onUnread);
     this._socketHandlers = {};
   },
 
@@ -92,11 +111,6 @@ Page({
 
       if (app) {
         app.globalData.unreadCount = unread?.count || 0;
-        if ((unread?.count || 0) > 0) {
-          wx.setTabBarBadge({ index: 2, text: String(unread.count > 99 ? '99+' : unread.count) });
-        } else {
-          wx.removeTabBarBadge({ index: 2 });
-        }
       }
     } catch (error) {
       showFriendlyError(error, '消息列表加载失败，请稍后重试');

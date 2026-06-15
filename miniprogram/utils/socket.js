@@ -226,6 +226,10 @@ const connect = (token) => {
         emit('readAck', data.data);
         break;
 
+      case 'unread':
+        emit('unread', data.data);
+        break;
+
       case 'error':
         console.error('[socket] server error:', data.message);
         emit('error', data);

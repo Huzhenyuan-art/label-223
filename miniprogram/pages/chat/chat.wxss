@@ -67,6 +67,15 @@
   text-align: right;
 }
 
+.msg-read-status {
+  margin-left: 8rpx;
+  font-size: 18rpx;
+}
+
+.msg-row.mine .msg-read-status {
+  color: #0d8ab5;
+}
+
 .input-bar {
   background: rgba(255, 255, 255, 0.92);
   border: 2rpx solid #d5e8f1;

@@ -1,6 +1,6 @@
 const { Message, User, RevealDecision, Post, Resonance } = require('../models');
 const logger = require('../utils/logger');
-const { sendToUser } = require('../websocket');
+const { sendToUser, pushUnread } = require('../websocket');
 
 const getRevealStatus = async (conversationId, userId, otherUserId) => {
   const [counts, decision] = await Promise.all([
@@ -125,6 +125,8 @@ exports.getConversationMessages = async (req, res) => {
       { read: true }
     );
 
+    pushUnread(req.userId).catch((e) => logger.error(`Push unread on get messages error: ${e.message}`));
+
     const [idA, idB] = conversationId.split('_');
     const otherUserId = idA === userId ? idB : idA;
     const reveal = await getRevealStatus(conversationId, req.userId, otherUserId);
@@ -238,6 +240,8 @@ exports.sendMessage = async (req, res) => {
     ]);
 
     logger.info(`Message sent: ${message._id}`);
+
+    pushUnread(receiverId).catch((e) => logger.error(`Push unread on HTTP send error: ${e.message}`));
 
     return res.status(201).json({ code: 0, data: message });
   } catch (error) {

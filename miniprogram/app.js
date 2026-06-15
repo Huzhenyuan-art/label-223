@@ -7,7 +7,8 @@ App({
     userInfo: null,
     isLogin: false,
     authToken: '',
-    unreadCount: 0
+    unreadCount: 0,
+    unreadConversations: {}
   },
 
   _socketHandlers: {},
@@ -22,7 +23,6 @@ App({
       this.globalData.authToken = authToken;
       socket.connect(authToken);
       this._bindSocketEvents();
-      this._refreshUnreadCount();
       return;
     }
 
@@ -30,8 +30,12 @@ App({
   },
 
   _bindSocketEvents() {
+    const onUnread = (data) => {
+      this._applyUnread(data);
+    };
+
     const onMessage = () => {
-      this._refreshUnreadCount();
+      this.refreshUnreadCount();
     };
 
     const onAuth = (result) => {
@@ -40,21 +44,36 @@ App({
       }
     };
 
-    this._socketHandlers = { onMessage, onAuth };
+    this._socketHandlers = { onUnread, onMessage, onAuth };
 
+    socket.on('unread', onUnread);
     socket.on('message', onMessage);
     socket.on('auth', onAuth);
   },
 
   _unbindSocketEvents() {
-    const { onMessage, onAuth } = this._socketHandlers;
+    const { onUnread, onMessage, onAuth } = this._socketHandlers;
+    socket.off('unread', onUnread);
     socket.off('message', onMessage);
     socket.off('auth', onAuth);
     this._socketHandlers = {};
   },
 
-  async _refreshUnreadCount() {
-    return this.refreshUnreadCount();
+  _applyUnread(data) {
+    if (!data) return;
+    const total = data.total || 0;
+    const conversations = data.conversations || {};
+    this.globalData.unreadCount = total;
+    this.globalData.unreadConversations = conversations;
+    this._updateTabBadge(total);
+  },
+
+  _updateTabBadge(count) {
+    if (count > 0) {
+      wx.setTabBarBadge({ index: 2, text: String(count > 99 ? '99+' : count) });
+    } else {
+      wx.removeTabBarBadge({ index: 2 });
+    }
   },
 
   async refreshUnreadCount() {
@@ -62,11 +81,7 @@ App({
       const data = await request.get(config.API.UNREAD_COUNT);
       const count = data?.count || 0;
       this.globalData.unreadCount = count;
-      if (count > 0) {
-        wx.setTabBarBadge({ index: 2, text: String(count > 99 ? '99+' : count) });
-      } else {
-        wx.removeTabBarBadge({ index: 2 });
-      }
+      this._updateTabBadge(count);
       return count;
     } catch (e) {
       return 0;
@@ -88,7 +103,6 @@ App({
     wx.setStorageSync('userId', userInfo.id);
     socket.connect(authToken);
     this._bindSocketEvents();
-    this._refreshUnreadCount();
   },
 
   onLogout() {
@@ -96,6 +110,7 @@ App({
     this.globalData.userInfo = null;
     this.globalData.authToken = '';
     this.globalData.unreadCount = 0;
+    this.globalData.unreadConversations = {};
     wx.removeStorageSync('userInfo');
     wx.removeStorageSync('authToken');
     wx.removeStorageSync('userId');

@@ -1,10 +1,31 @@
 const WebSocket = require('ws');
+const mongoose = require('mongoose');
 const { Message, User, Post, Resonance, RevealDecision } = require('../models');
 const logger = require('../utils/logger');
 const config = require('../config');
 const { verifyToken } = require('../utils/auth');
 
 const clients = new Map();
+
+const getUnreadAggregation = async (userId) => {
+  const rows = await Message.aggregate([
+    { $match: { receiver: new mongoose.Types.ObjectId(userId), read: false } },
+    { $group: { _id: '$conversationId', count: { $sum: 1 } } }
+  ]);
+  const conversations = {};
+  let total = 0;
+  for (const row of rows) {
+    conversations[row._id] = row.count;
+    total += row.count;
+  }
+  return { total, conversations };
+};
+
+const pushUnread = async (userId) => {
+  const agg = await getUnreadAggregation(userId);
+  sendToUser(userId.toString(), { type: 'unread', data: agg });
+  return agg;
+};
 
 const sendToUser = (userId, payload) => {
   const socket = clients.get(userId.toString());
@@ -41,6 +62,7 @@ const setupWebSocket = (server) => {
           clients.set(authedUserId, ws);
           ws.send(JSON.stringify({ type: 'auth', success: true, userId: authedUserId }));
           logger.info(`WebSocket auth success: ${authedUserId}`);
+          pushUnread(authedUserId).catch((e) => logger.error(`Push unread on auth error: ${e.message}`));
           return;
         }
 
@@ -111,6 +133,7 @@ const setupWebSocket = (server) => {
           const payload = { type: 'message', data: created };
           ws.send(JSON.stringify(payload));
           sendToUser(msg.receiverId, payload);
+          pushUnread(msg.receiverId).catch((e) => logger.error(`Push unread on message error: ${e.message}`));
 
           const newCount = existingCount + 1;
           if (newCount >= 6) {
@@ -168,6 +191,9 @@ const setupWebSocket = (server) => {
             }
           });
 
+          pushUnread(authedUserId).catch((e) => logger.error(`Push unread on read_ack error: ${e.message}`));
+          pushUnread(otherUserId).catch((e) => logger.error(`Push unread on read_ack other error: ${e.message}`));
+
           return;
         }
 
@@ -205,4 +231,4 @@ const setupWebSocket = (server) => {
   logger.info('WebSocket server initialized');
 };
 
-module.exports = { setupWebSocket, sendToUser };
+module.exports = { setupWebSocket, sendToUser, pushUnread, getUnreadAggregation };

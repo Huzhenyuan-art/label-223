@@ -33,7 +33,7 @@
           <view class="msg-tag">{{item.senderDynamicTag}}</view>
           <view wx:if="{{item.sourcePostLabel}}" class="msg-source">来自频率：{{item.sourcePostLabel}}</view>
           <view class="msg-content">{{item.content}}</view>
-          <view class="msg-time">{{item.timeAgo}}</view>
+          <view class="msg-time">{{item.timeAgo}} <text wx:if="{{item.mine}}" class="msg-read-status">{{item.read ? '已读' : '未读'}}</text></view>
         </view>
       </view>
     </block>
