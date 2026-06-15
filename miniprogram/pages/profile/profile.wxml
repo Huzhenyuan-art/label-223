@@ -46,10 +46,10 @@
 
   <view class="ocean-card">
     <view class="row-between mb-16">
-      <view class="section-title">收藏夹（按标签）</view>
-      <view class="row">
+      <view class="section-title section-title-flex">收藏夹（按标签）</view>
+      <view class="row actions-row">
         <button class="btn-secondary mini-btn" bindtap="goFavorites">管理收藏</button>
-        <button class="btn-secondary mini-btn" style="margin-left: 12rpx;" bindtap="goMemberPage">会员中心</button>
+        <button class="btn-secondary mini-btn action-btn-gap" bindtap="goMemberPage">会员中心</button>
       </view>
     </view>
 

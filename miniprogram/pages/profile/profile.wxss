@@ -48,10 +48,25 @@
 }
 
 .mini-btn {
-  width: 200rpx;
+  width: 180rpx;
   height: 64rpx;
   line-height: 64rpx;
   font-size: 22rpx;
+  flex-shrink: 0;
+}
+
+.section-title-flex {
+  flex: 1;
+  min-width: 0;
+  margin-right: 16rpx;
+}
+
+.actions-row {
+  flex-shrink: 0;
+}
+
+.action-btn-gap {
+  margin-left: 12rpx;
 }
 
 .login-state-card {

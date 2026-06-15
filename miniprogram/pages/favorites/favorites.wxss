@@ -36,10 +36,13 @@
   display: flex;
   align-items: center;
   gap: 12rpx;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .tag-scroll {
   flex: 1;
+  min-width: 0;
   white-space: nowrap;
 }
 
