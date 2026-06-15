@@ -1,7 +1,27 @@
 const request = require('../../utils/request');
 const config = require('../../config/index');
 const { parseTagsInput, ensureLogin, showFriendlyError } = require('../../utils/util');
-const { chooseAndUploadImage, chooseAndUploadAudio, deleteMedia, formatFileSize } = require('../../utils/upload');
+const {
+  chooseAndUploadImage,
+  chooseAndUploadAudio,
+  deleteMedia,
+  formatFileSize,
+  isImageFile,
+  isAudioFile
+} = require('../../utils/upload');
+
+const isValidMediaUrl = (url, type) => {
+  if (!url) return true;
+  try {
+    const urlObj = new URL(url);
+    const fileName = urlObj.pathname.split('/').pop();
+    if (type === 'image') return isImageFile(fileName);
+    if (type === 'audio') return isAudioFile(fileName);
+    return false;
+  } catch (e) {
+    return false;
+  }
+};
 
 Page({
   data: {
@@ -229,6 +249,19 @@ Page({
       return;
     }
 
+    const coverImage = this.data.coverImage.trim();
+    const audioUrl = this.data.audioUrl.trim();
+
+    if (coverImage && !isValidMediaUrl(coverImage, 'image')) {
+      wx.showToast({ title: '封面图片非法，请重新上传', icon: 'none' });
+      return;
+    }
+
+    if (audioUrl && !isValidMediaUrl(audioUrl, 'audio')) {
+      wx.showToast({ title: '音频文件非法，请重新上传', icon: 'none' });
+      return;
+    }
+
     const contentText = this.data.contentText.trim();
     if (contentText.length < 2) {
       wx.showToast({ title: '请输入至少2个字内容', icon: 'none' });
@@ -250,9 +283,9 @@ Page({
       contentText,
       dynamicTag,
       tags,
-      audioUrl: this.data.audioUrl.trim(),
+      audioUrl,
       linkUrl: this.data.linkUrl.trim(),
-      coverImage: this.data.coverImage.trim()
+      coverImage
     };
 
     this.setData({ submitting: true });

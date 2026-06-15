@@ -2,11 +2,29 @@ const request = require('./request');
 const config = require('../config/index');
 const { ensureLogin } = require('./util');
 
+const AUDIO_EXTENSIONS = ['mp3', 'wav', 'ogg', 'aac', 'm4a'];
+const IMAGE_EXTENSIONS = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+
 const formatFileSize = (bytes) => {
   if (bytes < 1024) return bytes + 'B';
   if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + 'KB';
   return (bytes / (1024 * 1024)).toFixed(2) + 'MB';
 };
+
+const getFileExtension = (fileName) => {
+  if (!fileName) return '';
+  const lastDot = fileName.lastIndexOf('.');
+  if (lastDot === -1 || lastDot === fileName.length - 1) return '';
+  return fileName.slice(lastDot + 1).toLowerCase();
+};
+
+const isAllowedExtension = (fileName, allowedList) => {
+  const ext = getFileExtension(fileName);
+  return ext !== '' && allowedList.includes(ext);
+};
+
+const isAudioFile = (fileName) => isAllowedExtension(fileName, AUDIO_EXTENSIONS);
+const isImageFile = (fileName) => isAllowedExtension(fileName, IMAGE_EXTENSIONS);
 
 const chooseImage = (options = {}) => {
   const {
@@ -23,10 +41,29 @@ const chooseImage = (options = {}) => {
       sourceType,
       success: (res) => {
         if (res.tempFiles && res.tempFiles.length > 0) {
-          resolve(res.tempFiles.map((file) => ({
+          const validatedFiles = res.tempFiles.filter((file) => {
+            const fileName = file.tempFilePath.split('/').pop();
+            if (!isImageFile(fileName)) {
+              return false;
+            }
+            return true;
+          });
+
+          if (validatedFiles.length === 0) {
+            wx.showToast({
+              title: '请选择图片文件（jpg/png/gif/webp）',
+              icon: 'none',
+              duration: 2500
+            });
+            reject(new Error('文件类型不支持'));
+            return;
+          }
+
+          resolve(validatedFiles.map((file) => ({
             tempFilePath: file.tempFilePath,
             size: file.size,
-            duration: file.duration
+            duration: file.duration,
+            name: file.tempFilePath.split('/').pop()
           })));
         } else {
           reject(new Error('未选择图片'));
@@ -41,14 +78,6 @@ const chooseImage = (options = {}) => {
       }
     });
   });
-};
-
-const AUDIO_EXTENSIONS = ['mp3', 'wav', 'ogg', 'aac', 'm4a'];
-
-const isAudioFile = (fileName) => {
-  if (!fileName) return false;
-  const ext = fileName.split('.').pop().toLowerCase();
-  return AUDIO_EXTENSIONS.includes(ext);
 };
 
 const chooseAudio = () => {
@@ -91,9 +120,27 @@ const chooseAudio = () => {
   });
 };
 
-const doUpload = (apiPath, tempFilePath, onProgress) => {
+const doUpload = (apiPath, tempFilePath, expectedType, onProgress) => {
   if (!ensureLogin({ showToast: true, redirect: false })) {
     return Promise.reject(new Error('请先登录'));
+  }
+
+  const fileName = tempFilePath.split('/').pop();
+  if (expectedType === 'audio' && !isAudioFile(fileName)) {
+    wx.showToast({
+      title: '非法的音频文件类型',
+      icon: 'none',
+      duration: 2500
+    });
+    return Promise.reject(new Error('非法的音频文件类型'));
+  }
+  if (expectedType === 'image' && !isImageFile(fileName)) {
+    wx.showToast({
+      title: '非法的图片文件类型',
+      icon: 'none',
+      duration: 2500
+    });
+    return Promise.reject(new Error('非法的图片文件类型'));
   }
 
   return new Promise((resolve, reject) => {
@@ -141,8 +188,8 @@ const doUpload = (apiPath, tempFilePath, onProgress) => {
   });
 };
 
-const uploadImage = (tempFilePath, onProgress) => doUpload(config.API.UPLOAD_IMAGE, tempFilePath, onProgress);
-const uploadAudio = (tempFilePath, onProgress) => doUpload(config.API.UPLOAD_AUDIO, tempFilePath, onProgress);
+const uploadImage = (tempFilePath, onProgress) => doUpload(config.API.UPLOAD_IMAGE, tempFilePath, 'image', onProgress);
+const uploadAudio = (tempFilePath, onProgress) => doUpload(config.API.UPLOAD_AUDIO, tempFilePath, 'audio', onProgress);
 
 const deleteMedia = async (url) => {
   if (!url) return;
@@ -157,6 +204,15 @@ const chooseAndUploadImage = async (onProgress) => {
   const files = await chooseImage({ count: 1 });
   const file = files[0];
 
+  if (!isImageFile(file.name)) {
+    wx.showToast({
+      title: '请选择图片文件（jpg/png/gif/webp）',
+      icon: 'none',
+      duration: 2500
+    });
+    throw new Error('文件类型不支持');
+  }
+
   if (file.size > 10 * 1024 * 1024) {
     wx.showToast({ title: '图片不能超过10MB', icon: 'none' });
     throw new Error('图片过大');
@@ -168,6 +224,15 @@ const chooseAndUploadImage = async (onProgress) => {
 const chooseAndUploadAudio = async (onProgress) => {
   const files = await chooseAudio();
   const file = files[0];
+
+  if (!isAudioFile(file.name)) {
+    wx.showToast({
+      title: '请选择音频文件（mp3/wav/ogg/aac/m4a）',
+      icon: 'none',
+      duration: 2500
+    });
+    throw new Error('文件类型不支持');
+  }
 
   if (file.size > 50 * 1024 * 1024) {
     wx.showToast({ title: '音频不能超过50MB', icon: 'none' });
@@ -185,5 +250,9 @@ module.exports = {
   uploadAudio,
   deleteMedia,
   chooseAndUploadImage,
-  chooseAndUploadAudio
+  chooseAndUploadAudio,
+  isImageFile,
+  isAudioFile,
+  AUDIO_EXTENSIONS,
+  IMAGE_EXTENSIONS
 };
