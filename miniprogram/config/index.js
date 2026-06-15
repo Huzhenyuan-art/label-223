@@ -36,7 +36,11 @@ const config = {
     COMMERCE_DERIVATIVES: '/api/commerce/derivatives',
     DERIVATIVE_WAITLIST_PREFIX: '/api/commerce/derivatives',
     COMMERCE_CAMPS: '/api/commerce/camps',
-    CAMP_INQUIRY_PREFIX: '/api/commerce/camps'
+    CAMP_INQUIRY_PREFIX: '/api/commerce/camps',
+
+    UPLOAD_IMAGE: '/api/upload/image',
+    UPLOAD_AUDIO: '/api/upload/audio',
+    DELETE_MEDIA: '/api/upload'
   }
 };
 

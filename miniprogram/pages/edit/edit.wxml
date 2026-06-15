@@ -21,9 +21,79 @@
     <input class="input mb-16" placeholder="标题（可选）" value="{{title}}" data-key="title" bindinput="bindField" />
     <textarea class="textarea mb-16" placeholder="写下你的频率内容" value="{{contentText}}" data-key="contentText" bindinput="bindField" />
     <input class="input mb-16" placeholder="标签：多个请用逗号分隔" value="{{tagsInput}}" data-key="tagsInput" bindinput="bindField" />
-    <input class="input mb-16" placeholder="音频链接（可选）" value="{{audioUrl}}" data-key="audioUrl" bindinput="bindField" />
     <input class="input mb-16" placeholder="外部链接（可选）" value="{{linkUrl}}" data-key="linkUrl" bindinput="bindField" />
-    <input class="input" placeholder="封面图片链接（可选）" value="{{coverImage}}" data-key="coverImage" bindinput="bindField" />
+
+    <view class="media-section mb-16">
+      <view class="media-header">
+        <view class="media-label">封面图片</view>
+        <view class="media-hint">支持 JPG/PNG/GIF/WebP，最大10MB</view>
+      </view>
+
+      <view wx:if="{{coverImage}}" class="media-preview">
+        <image class="cover-preview" src="{{coverImage}}" mode="aspectFill" bindtap="onChooseCover" />
+        <view class="media-info">
+          <view class="media-name">{{coverImageName || '已上传封面图'}}</view>
+          <view wx:if="{{coverImageSize}}" class="media-size">{{coverImageSize}}</view>
+        </view>
+        <view class="media-actions">
+          <view class="action-btn" catchtap="onChooseCover">更换</view>
+          <view class="action-btn danger" catchtap="onRemoveCover">移除</view>
+        </view>
+      </view>
+
+      <view wx:elif="{{uploadingCover}}" class="media-uploading">
+        <view class="uploading-icon">⬆</view>
+        <view class="uploading-info">
+          <view class="uploading-text">正在上传封面图...</view>
+          <view class="progress-bar">
+            <view class="progress-fill" style="width: {{coverUploadProgress}}%"></view>
+          </view>
+          <view class="uploading-percent">{{coverUploadProgress}}%</view>
+        </view>
+      </view>
+
+      <view wx:else class="upload-btn" bindtap="onChooseCover">
+        <view class="upload-icon">📷</view>
+        <view class="upload-text">选择封面图片</view>
+        <view class="upload-subtext">从相册选择或拍照</view>
+      </view>
+    </view>
+
+    <view class="media-section">
+      <view class="media-header">
+        <view class="media-label">音频内容</view>
+        <view class="media-hint">支持 MP3/WAV/OGG/AAC，最大50MB</view>
+      </view>
+
+      <view wx:if="{{audioUrl}}" class="media-preview">
+        <view class="audio-icon">🎵</view>
+        <view class="media-info">
+          <view class="media-name">{{audioName || '已上传音频'}}</view>
+          <view wx:if="{{audioSize}}" class="media-size">{{audioSize}}</view>
+        </view>
+        <view class="media-actions">
+          <view class="action-btn" catchtap="onChooseAudio">更换</view>
+          <view class="action-btn danger" catchtap="onRemoveAudio">移除</view>
+        </view>
+      </view>
+
+      <view wx:elif="{{uploadingAudio}}" class="media-uploading">
+        <view class="uploading-icon">⬆</view>
+        <view class="uploading-info">
+          <view class="uploading-text">正在上传音频...</view>
+          <view class="progress-bar">
+            <view class="progress-fill audio" style="width: {{audioUploadProgress}}%"></view>
+          </view>
+          <view class="uploading-percent">{{audioUploadProgress}}%</view>
+        </view>
+      </view>
+
+      <view wx:else class="upload-btn" bindtap="onChooseAudio">
+        <view class="upload-icon">🎤</view>
+        <view class="upload-text">选择音频文件</view>
+        <view class="upload-subtext">从聊天记录中选择音频文件</view>
+      </view>
+    </view>
   </view>
 
   <button class="btn-primary" bindtap="submitPost" loading="{{submitting}}">{{submitText}}</button>

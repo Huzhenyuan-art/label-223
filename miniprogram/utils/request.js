@@ -70,10 +70,62 @@ const post = (url, data, extra = {}) => request({ ...extra, url, method: 'POST',
 const put = (url, data, extra = {}) => request({ ...extra, url, method: 'PUT', data });
 const del = (url, data, extra = {}) => request({ ...extra, url, method: 'DELETE', data });
 
+const uploadFile = (url, filePath, name = 'file', formData = {}, extra = {}) => {
+  return new Promise((resolve, reject) => {
+    const authToken = wx.getStorageSync('authToken');
+
+    wx.uploadFile({
+      url: config.BASE_URL + url,
+      filePath,
+      name,
+      formData,
+      header: {
+        Authorization: authToken ? `Bearer ${authToken}` : '',
+        ...(extra.header || {})
+      },
+      success: (res) => {
+        try {
+          const data = JSON.parse(res.data);
+          if (res.statusCode >= 200 && res.statusCode < 300 && data.code === 0) {
+            resolve(data.data);
+            return;
+          }
+
+          const message = data?.message || '上传失败';
+          wx.showToast({ title: message, icon: 'none' });
+          reject({
+            statusCode: res.statusCode,
+            message,
+            raw: data,
+            toastShown: true
+          });
+        } catch (parseError) {
+          wx.showToast({ title: '响应解析失败', icon: 'none' });
+          reject({
+            statusCode: res.statusCode,
+            message: '响应解析失败',
+            raw: res.data,
+            toastShown: true
+          });
+        }
+      },
+      fail: (err) => {
+        wx.showToast({ title: '网络连接失败', icon: 'none' });
+        reject({
+          ...(err || {}),
+          message: '网络连接失败',
+          toastShown: true
+        });
+      }
+    });
+  });
+};
+
 module.exports = {
   request,
   get,
   post,
   put,
-  delete: del
+  delete: del,
+  uploadFile
 };
