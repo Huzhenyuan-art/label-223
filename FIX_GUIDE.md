@@ -53,3 +53,56 @@ TabBar 未读角标仅在 `app.js` 中管理，且仅在收到新消息（WebSoc
 - `wx.setTabBarBadge` 的 text 必须为字符串，数字 > 99 时显示 "99+"
 - `wx.removeTabBarBadge` 在无角标时调用不会报错，安全
 - `messages.js` 选择直接用已获取的 unread count 更新 TabBar，而非调用 `app.refreshUnreadCount()`，避免重复 HTTP 请求
+
+---
+
+## 问题：删除频率时提示 Server error，点击编辑按钮无反应
+
+### 现象描述
+1. 用户在频率详情页点击"删除"，确认后提示 "Server error"，删除失败
+2. 用户点击"编辑"按钮没有任何反应，页面不跳转
+
+### 根因分析
+
+#### 问题1：删除时 Server error
+后端 `deletePost` 方法使用了 MongoDB 事务（`mongoose.startSession()`），但单机版 MongoDB 不支持事务，必须运行在副本集或分片集群模式下才支持事务。调用 `startSession()` 会直接抛出异常，导致返回 500 Server error。
+
+#### 问题2：编辑按钮无反应
+`isOwnPost` 判断条件中，`post.author._id` 是 MongoDB 返回的 ObjectId 对象，而 `wx.getStorageSync('userId')` 是字符串，直接使用 `===` 比较时类型不匹配，结果始终为 `false`，导致编辑和删除按钮不显示（`wx:if` 条件不满足）。即使按钮显示了，发布页中也有同样的权限判断问题，进入编辑页时会被错误地判定为无权限。
+
+### 修复方案
+
+#### 1. postController.js — 移除删除操作的事务
+将删除操作改为普通顺序执行，移除 `session` 事务相关代码。虽然失去了原子性保证，但在单机环境下可正常运行。
+
+**文件**：`backend/src/controllers/postController.js`
+
+#### 2. detail.js — 修正 isOwnPost 判断
+将 ObjectId 和 userId 都用 `String()` 转换后再比较，确保类型一致。
+
+**文件**：`miniprogram/pages/detail/detail.js`
+
+#### 3. publish.js — 修正编辑权限判断
+同样将 ObjectId 和 userId 用 `String()` 转换后比较，防止进入编辑页时被误判为无权限。
+
+**文件**：`miniprogram/pages/publish/publish.js`
+
+### 涉及文件清单
+| 文件 | 改动说明 |
+|------|---------|
+| `backend/src/controllers/postController.js` | 移除 deletePost 方法中的 MongoDB 事务 |
+| `miniprogram/pages/detail/detail.js` | isOwnPost 判断时用 String() 转换类型 |
+| `miniprogram/pages/publish/publish.js` | 编辑权限判断时用 String() 转换类型 |
+
+### 验证方法
+1. 登录账号后发布一条原频
+2. 进入该频率详情页，应能看到"编辑"和"删除"按钮
+3. 点击"编辑"按钮，应跳转到编辑页并自动填充原有内容
+4. 修改内容后保存，应提示"修改已保存"并返回详情页
+5. 详情页应显示"最后编辑于..."提示
+6. 点击"删除"按钮，确认后应提示"删除成功"并返回上一页
+
+### 注意事项
+- MongoDB ObjectId 与字符串比较时必须显式转换类型，这是前后端联调的常见坑
+- 单机版 MongoDB 不支持事务，如后续需要事务保证数据一致性，需部署副本集
+- 移除事务后，删除操作若中途失败可能产生脏数据（如只删了部分关联数据），建议监控 error 日志

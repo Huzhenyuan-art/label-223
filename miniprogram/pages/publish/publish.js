@@ -51,7 +51,7 @@ Page({
       const detail = await request.get(`${config.API.POST_DETAIL_PREFIX}/${editId}`);
       const post = detail.post;
 
-      if (post?.author?._id !== wx.getStorageSync('userId')) {
+      if (String(post?.author?._id) !== String(wx.getStorageSync('userId'))) {
         wx.showToast({ title: '无权限编辑此内容', icon: 'none' });
         setTimeout(() => wx.navigateBack(), 1500);
         return;

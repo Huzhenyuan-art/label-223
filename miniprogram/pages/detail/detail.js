@@ -86,7 +86,7 @@ Page({
           updatedAt,
           createdAt
         },
-        isOwnPost: post?.author?._id === wx.getStorageSync('userId'),
+        isOwnPost: String(post?.author?._id) === String(wx.getStorageSync('userId')),
         comments,
         superEchoes
       });
