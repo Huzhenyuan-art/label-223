@@ -19,6 +19,7 @@ const resonanceSchema = new mongoose.Schema(
 );
 
 resonanceSchema.index({ post: 1, user: 1 }, { unique: true });
+resonanceSchema.index({ post: 1, createdAt: -1 });
 resonanceSchema.index({ user: 1, createdAt: -1 });
 
 module.exports = mongoose.model('Resonance', resonanceSchema);

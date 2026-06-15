@@ -16,6 +16,7 @@ const config = {
     HOT_TAGS: '/api/feed/hot-tags',
     DEEP_SEARCH: '/api/feed/search',
     POST_DETAIL_PREFIX: '/api/feed/posts',
+    POST_RESONANCES_PREFIX: '/api/feed/posts',
 
     CREATE_POST: '/api/posts',
     MY_POSTS: '/api/posts/me',

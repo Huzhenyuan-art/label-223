@@ -34,7 +34,13 @@ Page({
     waveTag: '#同频访客',
     waveContent: '',
     waveSending: false,
-    loading: false
+    loading: false,
+    resonanceList: [],
+    resonancePage: 1,
+    resonanceLimit: 20,
+    resonanceTotal: 0,
+    resonanceLoading: false,
+    resonanceHasMore: true
   },
 
   onLoad(options) {
@@ -92,6 +98,7 @@ Page({
       });
 
       await this.loadTree();
+      this.loadResonanceList(true);
     } catch (error) {
       showFriendlyError(error, '详情加载失败，请稍后重试');
     } finally {
@@ -117,9 +124,64 @@ Page({
         resonanceCount: result.resonanceCount
       };
       this.setData({ post });
+      this.loadResonanceList(true);
     } catch (error) {
       showFriendlyError(error, '共鸣失败，请稍后重试');
     }
+  },
+
+  async loadResonanceList(reset = false) {
+    const id = this.data.id;
+    if (!id || this.data.resonanceLoading) {
+      return;
+    }
+
+    if (reset) {
+      this.setData({
+        resonancePage: 1,
+        resonanceList: [],
+        resonanceHasMore: true
+      });
+    }
+
+    if (!this.data.resonanceHasMore) {
+      return;
+    }
+
+    this.setData({ resonanceLoading: true });
+
+    try {
+      const page = reset ? 1 : this.data.resonancePage;
+      const result = await request.get(
+        `${config.API.POST_RESONANCES_PREFIX}/${id}/resonances?page=${page}&limit=${this.data.resonanceLimit}`
+      );
+
+      const list = (result.list || []).map((item) => ({
+        ...item,
+        timeAgo: formatTimeAgo(item.createdAt)
+      }));
+
+      const newList = reset ? list : [...this.data.resonanceList, ...list];
+      const pagination = result.pagination || {};
+
+      this.setData({
+        resonanceList: newList,
+        resonancePage: page + 1,
+        resonanceTotal: pagination.total || 0,
+        resonanceHasMore: page < (pagination.pages || 0),
+        resonanceLoading: false
+      });
+    } catch (error) {
+      this.setData({ resonanceLoading: false });
+      showFriendlyError(error, '共鸣者列表加载失败');
+    }
+  },
+
+  loadMoreResonances() {
+    if (this.data.resonanceLoading || !this.data.resonanceHasMore) {
+      return;
+    }
+    this.loadResonanceList(false);
   },
 
   async handleToggleFavorite() {

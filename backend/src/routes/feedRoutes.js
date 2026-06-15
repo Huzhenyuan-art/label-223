@@ -9,6 +9,7 @@ router.get('/ocean', optionalAuth, paginationValidator, feedController.getOceanF
 router.get('/hot-tags', optionalAuth, feedController.getHotTags);
 router.get('/search', optionalAuth, paginationValidator, feedController.searchDeepSea);
 router.get('/posts/:id', optionalAuth, postIdValidator, feedController.getPostDetail);
+router.get('/posts/:id/resonances', optionalAuth, postIdValidator, paginationValidator, feedController.getResonanceList);
 router.get('/posts/:id/super-echo-tree', optionalAuth, postIdValidator, feedController.getSuperEchoTree);
 
 module.exports = router;

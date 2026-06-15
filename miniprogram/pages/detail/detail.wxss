@@ -87,3 +87,51 @@
   line-height: 72rpx;
   font-size: 26rpx;
 }
+
+.resonance-item {
+  display: flex;
+  align-items: center;
+  padding: 16rpx 0;
+  border-bottom: 1rpx solid #e0edf3;
+}
+
+.resonance-item:last-child {
+  border-bottom: none;
+}
+
+.resonance-avatar {
+  width: 72rpx;
+  height: 72rpx;
+  border-radius: 50%;
+  margin-right: 20rpx;
+  background: #eaf5fb;
+}
+
+.resonance-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.resonance-name {
+  font-size: 28rpx;
+  font-weight: 500;
+  color: #1f3a48;
+}
+
+.resonance-time {
+  font-size: 22rpx;
+  margin-top: 4rpx;
+}
+
+.load-more {
+  text-align: center;
+  padding: 20rpx 0;
+  color: #0d4f69;
+  font-size: 26rpx;
+}
+
+.no-more {
+  text-align: center;
+  padding: 20rpx 0;
+  font-size: 24rpx;
+}

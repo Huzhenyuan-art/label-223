@@ -302,6 +302,51 @@ exports.getPostDetail = async (req, res) => {
   }
 };
 
+exports.getResonanceList = async (req, res) => {
+  try {
+    const postId = req.params.id;
+    const page = Number(req.query.page || 1);
+    const limit = Number(req.query.limit || 20);
+
+    const post = await Post.findById(postId);
+    if (!post) {
+      return res.status(404).json({ code: 1, message: 'Post not found' });
+    }
+
+    const [list, total] = await Promise.all([
+      Resonance.find({ post: postId })
+        .populate('user', 'nickname avatar')
+        .sort({ createdAt: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .lean(),
+      Resonance.countDocuments({ post: postId })
+    ]);
+
+    const resonanceList = list.map((item) => ({
+      _id: item._id,
+      user: item.user,
+      createdAt: item.createdAt
+    }));
+
+    return res.json({
+      code: 0,
+      data: {
+        list: resonanceList,
+        pagination: {
+          page,
+          limit,
+          total,
+          pages: Math.ceil(total / limit)
+        }
+      }
+    });
+  } catch (error) {
+    logger.error(`Get resonance list error: ${error.message}`);
+    return res.status(500).json({ code: 1, message: 'Server error' });
+  }
+};
+
 exports.getSuperEchoTree = async (req, res) => {
   try {
     const rootId = req.params.id;

@@ -65,6 +65,27 @@
   </view>
 
   <view class="ocean-card">
+    <view class="section-title">共鸣者</view>
+    <block wx:if="{{resonanceList.length}}">
+      <block wx:for="{{resonanceList}}" wx:key="_id">
+        <view class="resonance-item">
+          <image class="resonance-avatar" src="{{item.user.avatar || '/images/avatar-default.png'}}" mode="aspectFill"></image>
+          <view class="resonance-info">
+            <view class="resonance-name">{{item.user.nickname}}</view>
+            <view class="muted resonance-time">{{item.timeAgo}}</view>
+          </view>
+        </view>
+      </block>
+      <view wx:if="{{resonanceHasMore}}" class="load-more" bindtap="loadMoreResonances">
+        <text wx:if="{{resonanceLoading}}">加载中...</text>
+        <text wx:else>加载更多</text>
+      </view>
+      <view wx:else class="no-more muted">没有更多了</view>
+    </block>
+    <view wx:else class="muted">暂时还没有共鸣者。</view>
+  </view>
+
+  <view class="ocean-card">
     <view class="section-title">合鸣谱系树</view>
     <block wx:if="{{treeLines.length}}">
       <block wx:for="{{treeLines}}" wx:key="id">
