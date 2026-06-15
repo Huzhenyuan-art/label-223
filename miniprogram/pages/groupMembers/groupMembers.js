@@ -61,6 +61,8 @@ Page({
     this.setData({ showInviteModal: false });
   },
 
+  preventBubble() {},
+
   onSearchKeywordInput(e) {
     this.setData({ searchKeyword: e.detail.value });
   },

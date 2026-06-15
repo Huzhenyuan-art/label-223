@@ -339,3 +339,86 @@ TabBar 未读角标仅在 `app.js` 中管理，且仅在收到新消息（WebSoc
 - **扩展名 ≠ 真实文件类型**：前端所有校验仅基于文件扩展名，**最终安全防线仍在后端**（MIME type 校验 + 文件魔数校验）
 - **URL 校验意义**：防止用户通过调试工具篡改 data 后提交非法 URL（如 XSS 链接、恶意下载链接等）
 - **前后端白名单一致性**：前端 `AUDIO_EXTENSIONS` / `IMAGE_EXTENSIONS` 必须与后端 `config.storage.allowedMimeTypes` 保持对应关系，否则会出现前端允许而后端拒绝的情况
+
+---
+
+## 问题：私人小组弹窗点击内容区域直接关闭 + 支付成功后提示网络连接失败
+
+### 现象描述
+1. **发帖弹窗**：小组详情页点击「发帖」后弹出弹窗，点击弹窗内容区域（包括输入框）时弹窗直接关闭，无法输入内容
+2. **邀请码弹窗**：小组列表页点击「输入邀请码加入」后弹出弹窗，同样点击输入框时弹窗直接关闭，无法输入
+3. **会员支付**：点击「立即支付开通」后提示「支付成功」，紧接着又弹出「网络连接失败」提示
+
+### 根因分析
+
+#### 问题 1&2：弹窗内容点击关闭
+
+弹窗结构为遮罩层（`modal-mask`，绑定 `bindtap="closeXxxModal"`）包裹内容区域（`modal-content`，使用 `catchtap=""` 阻止冒泡）。
+
+**根因**：`catchtap=""` 空字符串在微信小程序中不能正确阻止事件冒泡。当用户点击 input、textarea 或空白内容区域时，tap 事件会穿透 `catchtap=""` 继续冒泡到遮罩层的 `bindtap` 处理函数，触发关闭弹窗。
+
+微信小程序的事件机制要求 `catchtap` 必须绑定到一个实际存在的函数名才能生效，空字符串等价于未绑定，不会拦截事件。
+
+#### 问题 3：支付成功后网络连接失败
+
+支付流程：`pay()` -> `request.post(CHECKOUT)` 成功 -> `wx.showToast('支付成功')` -> `this.loadData()` -> `loadData` 内部调用 `request.get(config.API.PRIVATE_GROUPS)` -> **失败**
+
+**根因**：小组模块重构时，将 API 配置从 `PRIVATE_GROUPS: '/api/users/me/private-groups'` 改为 `PRIVATE_GROUPS_MY: '/api/private-groups/me'`，但 `member.js` 仍引用旧的 `config.API.PRIVATE_GROUPS`，该配置已不存在，值为 `undefined`。`request.get(undefined)` 会构造出 `http://localhost:8223/undefined` 的请求地址，导致网络请求失败，触发 `request.js` 中的 `fail` 回调显示「网络连接失败」。
+
+同时 `createPrivateGroup()` 方法中也引用了 `config.API.PRIVATE_GROUPS`（旧配置），同样会失败。
+
+### 修复方案
+
+#### 1. 修复弹窗事件冒泡 - 3 个页面
+
+将所有 `catchtap=""` 改为 `catchtap="preventBubble"`，并在各页面的 Page 对象中添加空的 `preventBubble()` 方法。
+
+涉及文件：
+- `miniprogram/pages/groups/groups.wxml` - `catchtap=""` 改为 `catchtap="preventBubble"`
+- `miniprogram/pages/groups/groups.js` - 添加 `preventBubble() {}`
+- `miniprogram/pages/groupDetail/groupDetail.wxml` - `catchtap=""` 改为 `catchtap="preventBubble"`
+- `miniprogram/pages/groupDetail/groupDetail.js` - 添加 `preventBubble() {}`
+- `miniprogram/pages/groupMembers/groupMembers.wxml` - `catchtap=""` 改为 `catchtap="preventBubble"`
+- `miniprogram/pages/groupMembers/groupMembers.js` - 添加 `preventBubble() {}`
+
+#### 2. 修复 API 配置引用 - member.js
+
+将 `config.API.PRIVATE_GROUPS`（已移除）替换为新配置名：
+- loadData 中获取小组列表：`config.API.PRIVATE_GROUPS` -> `config.API.PRIVATE_GROUPS_MY`
+- createPrivateGroup 中创建小组：`config.API.PRIVATE_GROUPS` -> `config.API.PRIVATE_GROUPS_CREATE`
+
+涉及文件：`miniprogram/pages/member/member.js`
+
+### 涉及文件清单
+| 文件 | 改动说明 |
+|------|---------|
+| `miniprogram/pages/groups/groups.wxml` | `catchtap=""` 改为 `catchtap="preventBubble"` |
+| `miniprogram/pages/groups/groups.js` | 新增 `preventBubble()` 空方法 |
+| `miniprogram/pages/groupDetail/groupDetail.wxml` | `catchtap=""` 改为 `catchtap="preventBubble"` |
+| `miniprogram/pages/groupDetail/groupDetail.js` | 新增 `preventBubble()` 空方法 |
+| `miniprogram/pages/groupMembers/groupMembers.wxml` | `catchtap=""` 改为 `catchtap="preventBubble"` |
+| `miniprogram/pages/groupMembers/groupMembers.js` | 新增 `preventBubble()` 空方法 |
+| `miniprogram/pages/member/member.js` | `PRIVATE_GROUPS` 改为 `PRIVATE_GROUPS_MY` / `PRIVATE_GROUPS_CREATE` |
+
+### 验证方法
+#### 场景 A：发帖弹窗可正常输入
+1. 进入小组详情页，点击「发帖」
+2. 点击输入框，弹窗不应关闭
+3. 输入标题和内容，点击「发布」应正常提交
+4. 点击弹窗外遮罩区域，弹窗应关闭
+
+#### 场景 B：邀请码弹窗可正常输入
+1. 进入小组列表页，点击「输入邀请码加入」
+2. 点击输入框，弹窗不应关闭
+3. 输入邀请码，点击「加入」应正常提交
+4. 点击弹窗外遮罩区域，弹窗应关闭
+
+#### 场景 C：会员支付不再报网络错误
+1. 进入会员中心，点击任一方案的「立即支付开通」
+2. 应仅提示「支付成功」，不再出现「网络连接失败」
+3. 支付后页面数据自动刷新，私人小组模块正常显示
+
+### 注意事项
+- **微信小程序 catchtap 机制**：`catchtap` 必须绑定到实际存在的函数名，空字符串不会阻止事件冒泡，这是与浏览器 `event.stopPropagation()` 不同的行为
+- **API 配置重构一致性**：修改配置项名称时，必须全局搜索所有引用点并同步更新，避免出现 `undefined` 配置导致静默失败
+- **支付后刷新链路**：支付成功后 `loadData()` 会发起多个并行请求，任何一个失败都会触发 toast，需要确保所有 API 引用正确

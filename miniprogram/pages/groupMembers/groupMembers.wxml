@@ -36,7 +36,7 @@
 </view>
 
 <view wx:if="{{showInviteModal}}" class="modal-mask" bindtap="closeInviteModal">
-  <view class="modal-content invite-modal" catchtap="">
+  <view class="modal-content invite-modal" catchtap="preventBubble">
     <view class="modal-title">邀请成员</view>
 
     <view class="search-row mt-16">

@@ -68,7 +68,7 @@ Page({
         try {
           const [insightData, groupsData] = await Promise.all([
             request.get(config.API.INSIGHT_REPORT),
-            request.get(config.API.PRIVATE_GROUPS)
+            request.get(config.API.PRIVATE_GROUPS_MY)
           ]);
           insight = insightData || null;
           privateGroups = groupsData || [];
@@ -205,7 +205,7 @@ Page({
     this.setData({ creatingGroup: true });
 
     try {
-      await request.post(config.API.PRIVATE_GROUPS, {
+      await request.post(config.API.PRIVATE_GROUPS_CREATE, {
         name,
         theme,
         description

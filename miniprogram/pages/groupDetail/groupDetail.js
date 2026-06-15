@@ -101,6 +101,8 @@ Page({
     this.setData({ showPostModal: false });
   },
 
+  preventBubble() {},
+
   onPostTitleInput(e) {
     this.setData({ postTitle: e.detail.value });
   },

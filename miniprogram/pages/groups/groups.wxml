@@ -41,7 +41,7 @@
 </view>
 
 <view class="modal-mask" wx:if="{{showJoinModal}}" bindtap="closeJoinModal">
-  <view class="modal-content" catchtap="">
+  <view class="modal-content" catchtap="preventBubble">
     <view class="modal-title">输入邀请码加入小组</view>
     <input
       class="input mt-16 mb-16"

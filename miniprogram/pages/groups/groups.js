@@ -47,6 +47,8 @@ Page({
     this.setData({ showJoinModal: false });
   },
 
+  preventBubble() {},
+
   onInviteCodeInput(e) {
     this.setData({ inviteCode: e.detail.value });
   },

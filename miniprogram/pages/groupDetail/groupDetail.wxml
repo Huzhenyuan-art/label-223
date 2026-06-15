@@ -80,7 +80,7 @@
 </view>
 
 <view wx:if="{{showPostModal}}" class="modal-mask" bindtap="closePostModal">
-  <view class="modal-content post-modal" catchtap="">
+  <view class="modal-content post-modal" catchtap="preventBubble">
     <view class="modal-title">发布新帖</view>
     <input
       class="input mt-16 mb-16"
