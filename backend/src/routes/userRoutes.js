@@ -14,6 +14,8 @@ router.post('/register', registerValidator, userController.register);
 router.post('/login', loginValidator, userController.login);
 router.get('/me/island', auth, userController.getIsland);
 router.get('/me/favorites/by-tag', auth, userController.getFavoritesByTag);
+router.get('/me/favorites/search', auth, userController.searchFavorites);
+router.post('/me/favorites/batch-remove', auth, userController.batchRemoveFavorites);
 router.get('/me/insight-report', auth, requirePremium, userController.getInsightReport);
 router.get('/me/private-groups', auth, requirePremium, userController.getMyPrivateGroups);
 router.post('/me/favorites/:postId/toggle', auth, userController.toggleFavorite);

@@ -7,6 +7,8 @@ const config = {
     ISLAND: '/api/users/me/island',
     INSIGHT_REPORT: '/api/users/me/insight-report',
     FAVORITES_BY_TAG: '/api/users/me/favorites/by-tag',
+    FAVORITES_SEARCH: '/api/users/me/favorites/search',
+    FAVORITES_BATCH_REMOVE: '/api/users/me/favorites/batch-remove',
     TOGGLE_FAVORITE_PREFIX: '/api/users/me/favorites',
     TAG_SKIN: '/api/users/me/tag-skin',
     PRIVATE_GROUPS: '/api/users/me/private-groups',

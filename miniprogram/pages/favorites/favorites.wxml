@@ -1,4 +1,43 @@
 <view class="page">
+  <view class="search-bar">
+    <input
+      class="search-input"
+      placeholder="搜索收藏内容..."
+      value="{{keyword}}"
+      bindinput="handleKeywordInput"
+      bindconfirm="handleSearch"
+    />
+    <view class="search-btn" bindtap="handleSearch">搜索</view>
+  </view>
+
+  <view wx:if="{{allTags.length}}" class="tag-filter">
+    <scroll-view scroll-x class="tag-scroll">
+      <view
+        class="filter-chip {{activeTag === item ? 'active' : ''}}"
+        wx:for="{{allTags}}"
+        wx:key="*this"
+        data-tag="{{item}}"
+        bindtap="handleTagFilter"
+      >#{{item}}</view>
+    </scroll-view>
+    <view wx:if="{{activeTag || keyword}}" class="clear-filter" bindtap="handleClearFilter">清除筛选</view>
+  </view>
+
+  <view class="toolbar">
+    <view class="toolbar-left">
+      <text class="fav-count">共 {{items.length}} 项收藏</text>
+    </view>
+    <view class="toolbar-right">
+      <view wx:if="{{!editMode}}" class="edit-toggle" bindtap="toggleEditMode">批量管理</view>
+      <block wx:else>
+        <view class="select-all-btn" bindtap="toggleSelectAll">
+          {{selectedIds.length === items.length ? '取消全选' : '全选'}}
+        </view>
+        <view class="edit-toggle active" bindtap="toggleEditMode">完成</view>
+      </block>
+    </view>
+  </view>
+
   <view wx:if="{{loading}}" class="loading">
     <view class="loading-spinner"></view>
   </view>
@@ -8,19 +47,43 @@
   </view>
 
   <view class="item-list">
-    <view wx:for="{{items}}" wx:key="_id" class="item-card" data-id="{{item._id}}" bindtap="goToDetail">
-      <image class="item-image" src="{{item.coverImage}}" mode="aspectFill" />
-      <view class="item-content">
-        <view class="item-title ellipsis">{{item.title}}</view>
-        <view class="item-meta">
-          <text class="item-price {{item.mode === 'gift' ? 'price-free' : ''}}">{{item.priceText}}</text>
-          <text class="item-category">{{item.categoryLabel}}</text>
+    <view
+      wx:for="{{items}}"
+      wx:key="_id"
+      class="item-card {{editMode && selectedIds.indexOf(item._id) > -1 ? 'selected' : ''}}"
+    >
+      <view
+        wx:if="{{editMode}}"
+        class="checkbox-area"
+        data-id="{{item._id}}"
+        catchtap="toggleSelectItem"
+      >
+        <view class="checkbox {{selectedIds.indexOf(item._id) > -1 ? 'checked' : ''}}">
+          <view wx:if="{{selectedIds.indexOf(item._id) > -1}}" class="check-mark"></view>
         </view>
-        <view class="item-bottom">
-          <text class="publisher-name" wx:if="{{item.publisher}}">{{item.publisher.nickname}}</text>
-          <view class="remove-btn" data-id="{{item._id}}" data-index="{{index}}" catchtap="onRemoveFavorite">取消收藏</view>
+      </view>
+
+      <view class="item-body" data-id="{{item._id}}" bindtap="goToDetail">
+        <image class="item-image" src="{{item.coverImage}}" mode="aspectFill" />
+        <view class="item-content">
+          <view class="item-title ellipsis">{{item.title || item.dynamicTag}}</view>
+          <view class="item-content-text ellipsis">{{item.contentText}}</view>
+          <view class="item-meta">
+            <view class="item-tags wrap">
+              <text wx:for="{{item.tags}}" wx:key="*this" wx:for-item="tag" class="mini-tag">#{{tag}}</text>
+            </view>
+          </view>
+          <view class="item-bottom">
+            <text class="publisher-name" wx:if="{{item.authorNickname}}">{{item.authorNickname}}</text>
+            <view wx:if="{{!editMode}}" class="remove-btn" data-id="{{item._id}}" catchtap="onRemoveFavorite">取消收藏</view>
+          </view>
         </view>
       </view>
     </view>
+  </view>
+
+  <view wx:if="{{editMode && selectedIds.length > 0}}" class="batch-bar">
+    <text class="batch-info">已选 {{selectedIds.length}} 项</text>
+    <button class="btn-danger batch-btn" bindtap="handleBatchRemove">批量取消收藏</button>
   </view>
 </view>

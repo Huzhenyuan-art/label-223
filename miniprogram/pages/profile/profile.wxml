@@ -47,7 +47,10 @@
   <view class="ocean-card">
     <view class="row-between mb-16">
       <view class="section-title">收藏夹（按标签）</view>
-      <button class="btn-secondary mini-btn" bindtap="goMemberPage">会员中心</button>
+      <view class="row">
+        <button class="btn-secondary mini-btn" bindtap="goFavorites">管理收藏</button>
+        <button class="btn-secondary mini-btn" style="margin-left: 12rpx;" bindtap="goMemberPage">会员中心</button>
+      </view>
     </view>
 
     <block wx:if="{{favoritesByTag.length}}">

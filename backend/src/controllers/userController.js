@@ -63,7 +63,7 @@ const buildSessionPayload = async (user) => {
 const buildInterestMap = async (userId) => {
   const objectId = toObjectId(userId);
 
-  const [authoredTags, resonatedTags, commentedTags] = await Promise.all([
+  const [authoredTags, resonatedTags, commentedTags, favoritedTags] = await Promise.all([
     Post.aggregate([
       { $match: { author: objectId } },
       { $unwind: '$tags' },
@@ -96,12 +96,21 @@ const buildInterestMap = async (userId) => {
       { $unwind: '$postDoc' },
       { $unwind: '$postDoc.tags' },
       { $group: { _id: '$postDoc.tags', score: { $sum: 1 } } }
-    ])
+    ]),
+    (async () => {
+      const user = await User.findById(userId).select('favoritePosts').lean();
+      if (!user || !user.favoritePosts || user.favoritePosts.length === 0) return [];
+      return Post.aggregate([
+        { $match: { _id: { $in: user.favoritePosts.map(id => toObjectId(id.toString())) } } },
+        { $unwind: '$tags' },
+        { $group: { _id: '$tags', score: { $sum: 1 } } }
+      ]);
+    })()
   ]);
 
   const map = new Map();
 
-  [authoredTags, resonatedTags, commentedTags].forEach((entries) => {
+  [authoredTags, resonatedTags, commentedTags, favoritedTags].forEach((entries) => {
     entries.forEach((item) => {
       map.set(item._id, (map.get(item._id) || 0) + item.score);
     });
@@ -306,6 +315,97 @@ exports.getFavoritesByTag = async (req, res) => {
     return res.json({ code: 0, data: groups });
   } catch (error) {
     logger.error(`Get favorites by tag error: ${error.message}`);
+    return res.status(500).json({ code: 1, message: 'Server error' });
+  }
+};
+
+exports.batchRemoveFavorites = async (req, res) => {
+  try {
+    const { postIds } = req.body;
+    if (!Array.isArray(postIds) || postIds.length === 0) {
+      return res.status(400).json({ code: 1, message: 'postIds must be a non-empty array' });
+    }
+
+    const user = await User.findById(req.userId);
+    if (!user) {
+      return res.status(404).json({ code: 1, message: 'User not found' });
+    }
+
+    const idSet = new Set(postIds.map(String));
+    user.favoritePosts = user.favoritePosts.filter(
+      (id) => !idSet.has(id.toString())
+    );
+    await user.save();
+
+    return res.json({
+      code: 0,
+      data: {
+        removedCount: idSet.size,
+        favoriteCount: user.favoritePosts.length
+      }
+    });
+  } catch (error) {
+    logger.error(`Batch remove favorites error: ${error.message}`);
+    return res.status(500).json({ code: 1, message: 'Server error' });
+  }
+};
+
+exports.searchFavorites = async (req, res) => {
+  try {
+    const { keyword, tag } = req.query;
+    const userId = req.userId;
+
+    const user = await User.findById(userId)
+      .populate({
+        path: 'favoritePosts',
+        populate: { path: 'author', select: 'nickname avatar' }
+      })
+      .lean();
+
+    if (!user) {
+      return res.status(404).json({ code: 1, message: 'User not found' });
+    }
+
+    let posts = user.favoritePosts || [];
+
+    if (tag) {
+      posts = posts.filter((post) =>
+        (post.tags || []).some((t) => t.toLowerCase() === tag.toLowerCase())
+      );
+    }
+
+    if (keyword) {
+      const kw = keyword.toLowerCase();
+      posts = posts.filter((post) =>
+        (post.title || '').toLowerCase().includes(kw) ||
+        (post.contentText || '').toLowerCase().includes(kw) ||
+        (post.dynamicTag || '').toLowerCase().includes(kw)
+      );
+    }
+
+    const allTags = [...new Set((user.favoritePosts || []).flatMap((p) => p.tags || []))];
+
+    const groups = new Map();
+    posts.forEach((post) => {
+      const key = post.tags?.[0] || '未分类';
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(post);
+    });
+
+    const favoritesByTag = [...groups.entries()]
+      .map(([t, p]) => ({ tag: t, count: p.length, posts: p }))
+      .sort((a, b) => b.count - a.count);
+
+    return res.json({
+      code: 0,
+      data: {
+        posts,
+        allTags,
+        favoritesByTag
+      }
+    });
+  } catch (error) {
+    logger.error(`Search favorites error: ${error.message}`);
     return res.status(500).json({ code: 1, message: 'Server error' });
   }
 };

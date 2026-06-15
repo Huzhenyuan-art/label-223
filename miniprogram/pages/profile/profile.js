@@ -93,6 +93,10 @@ Page({
     wx.navigateTo({ url: '/pages/member/member' });
   },
 
+  goFavorites() {
+    wx.navigateTo({ url: '/pages/favorites/favorites' });
+  },
+
   goDetail(event) {
     wx.navigateTo({ url: `/pages/detail/detail?id=${event.currentTarget.dataset.id}` });
   },

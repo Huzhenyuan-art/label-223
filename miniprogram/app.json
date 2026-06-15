@@ -9,7 +9,8 @@
     "pages/chat/chat",
     "pages/member/member",
     "pages/publicProfile/publicProfile",
-    "pages/login/login"
+    "pages/login/login",
+    "pages/favorites/favorites"
   ],
   "window": {
     "backgroundTextStyle": "dark",
