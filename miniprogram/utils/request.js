@@ -21,12 +21,27 @@ const request = (options) => {
 
         const rawMessage = res.data?.message || '请求失败';
         const message = rawMessage === 'Validation error' ? '请求参数错误，请稍后重试' : rawMessage;
+
+        const isPremiumRequired = res.statusCode === 403 && res.data?.code === 2;
+
         if (res.statusCode === 401 && options.authenticated !== false) {
           const app = getApp();
           if (app && typeof app.onLogout === 'function') {
             app.onLogout();
           }
           wx.showToast({ title: authToken ? '登录状态已失效' : '请先登录', icon: 'none' });
+        } else if (isPremiumRequired) {
+          wx.showModal({
+            title: '会员专属功能',
+            content: message,
+            confirmText: '去开通',
+            cancelText: '暂不',
+            success: (modalRes) => {
+              if (modalRes.confirm) {
+                wx.navigateTo({ url: '/pages/member/member' });
+              }
+            }
+          });
         } else {
           wx.showToast({ title: message, icon: 'none' });
         }
@@ -34,7 +49,8 @@ const request = (options) => {
           statusCode: res.statusCode,
           message,
           raw: res.data,
-          toastShown: true
+          toastShown: true,
+          isPremiumRequired
         });
       },
       fail: (err) => {

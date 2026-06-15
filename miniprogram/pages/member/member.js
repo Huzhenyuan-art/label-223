@@ -30,6 +30,7 @@ Page({
 
     insight: null,
     privateGroups: [],
+    isPremiumActive: false,
     creatingGroup: false,
     groupName: '',
     groupTheme: '',
@@ -50,16 +51,33 @@ Page({
 
   async loadData() {
     try {
-      const [plans, orders, island, derivatives, camps, insight, privateGroups] = await Promise.all([
+      const [plans, orders, island, derivatives, camps] = await Promise.all([
         request.get(config.API.PAYMENT_PLANS),
         request.get(config.API.MY_ORDERS),
         request.get(config.API.ISLAND),
         request.get(config.API.COMMERCE_DERIVATIVES),
-        request.get(config.API.COMMERCE_CAMPS),
-        request.get(config.API.INSIGHT_REPORT),
-        request.get(config.API.PRIVATE_GROUPS)
+        request.get(config.API.COMMERCE_CAMPS)
       ]);
       const planNameMap = new Map((plans || []).map((item) => [item.key, item.name]));
+
+      const isPremiumActive = Boolean(island.profile?.premium?.isActive);
+
+      let insight = null;
+      let privateGroups = [];
+      if (isPremiumActive) {
+        try {
+          const [insightData, groupsData] = await Promise.all([
+            request.get(config.API.INSIGHT_REPORT),
+            request.get(config.API.PRIVATE_GROUPS)
+          ]);
+          insight = insightData || null;
+          privateGroups = groupsData || [];
+        } catch (error) {
+          if (!error.isPremiumRequired) {
+            showFriendlyError(error, '会员数据加载失败');
+          }
+        }
+      }
 
       this.setData({
         plans: plans || [],
@@ -78,9 +96,10 @@ Page({
           cycleText: CYCLE_LABELS[item.cycle] || item.cycle,
           inquiryCount: item.inquiryCount || 0
         })),
-        insight: insight || null,
-        privateGroups: privateGroups || [],
+        insight,
+        privateGroups,
         selectedSkin: island.profile?.tagSkin || 'ocean',
+        isPremiumActive,
         premium: island.profile?.premium?.isActive
           ? {
             ...island.profile.premium,
@@ -118,6 +137,21 @@ Page({
   },
 
   async applySkin() {
+    if (!this.data.isPremiumActive) {
+      wx.showModal({
+        title: '会员专属功能',
+        content: '标签皮肤为会员专属，请先开通会员',
+        confirmText: '去开通',
+        cancelText: '暂不',
+        success: (res) => {
+          if (res.confirm) {
+            this.scrollToPlans();
+          }
+        }
+      });
+      return;
+    }
+
     if (this.data.applyingSkin) {
       return;
     }
@@ -140,6 +174,21 @@ Page({
   },
 
   async createPrivateGroup() {
+    if (!this.data.isPremiumActive) {
+      wx.showModal({
+        title: '会员专属功能',
+        content: '私人小组为会员专属，请先开通会员',
+        confirmText: '去开通',
+        cancelText: '暂不',
+        success: (res) => {
+          if (res.confirm) {
+            this.scrollToPlans();
+          }
+        }
+      });
+      return;
+    }
+
     if (this.data.creatingGroup) {
       return;
     }
@@ -244,5 +293,9 @@ Page({
     } finally {
       this.setData({ submittingCampId: '' });
     }
+  },
+
+  scrollToPlans() {
+    wx.pageScrollTo({ selector: '.plans-section', duration: 300 });
   }
 });

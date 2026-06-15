@@ -7,20 +7,26 @@
   </view>
 
   <view class="ocean-card">
-    <view class="section-title">标签皮肤</view>
-    <view class="wrap">
-      <block wx:for="{{skins}}" wx:key="key">
-        <view class="tag-chip {{selectedSkin === item.key ? 'active' : ''}}" data-skin="{{item.key}}" bindtap="selectSkin">
-          {{item.label}}
-        </view>
-      </block>
+    <view class="section-title">标签皮肤{{isPremiumActive ? '' : ' 🔒'}}</view>
+    <view wx:if="{{isPremiumActive}}">
+      <view class="wrap">
+        <block wx:for="{{skins}}" wx:key="key">
+          <view class="tag-chip {{selectedSkin === item.key ? 'active' : ''}}" data-skin="{{item.key}}" bindtap="selectSkin">
+            {{item.label}}
+          </view>
+        </block>
+      </view>
+      <button class="btn-secondary mt-16" bindtap="applySkin" loading="{{applyingSkin}}">应用当前皮肤</button>
     </view>
-    <button class="btn-secondary mt-16" bindtap="applySkin" loading="{{applyingSkin}}">应用当前皮肤</button>
+    <view wx:else class="lock-hint">
+      <view class="muted">开通会员后可切换标签皮肤</view>
+      <button class="btn-primary mt-12" bindtap="scrollToPlans">立即开通</button>
+    </view>
   </view>
 
   <view class="ocean-card">
-    <view class="section-title">数据洞察报告（近30天）</view>
-    <view wx:if="{{insight}}">
+    <view class="section-title">数据洞察报告（近30天）{{isPremiumActive ? '' : ' 🔒'}}</view>
+    <view wx:if="{{isPremiumActive && insight}}">
       <view class="stat-grid">
         <view class="stat-item">
           <view class="stat-value">{{insight.summary.postCount30d}}</view>
@@ -47,32 +53,42 @@
         </block>
       </view>
     </view>
-    <view wx:else class="muted">暂无洞察数据。</view>
+    <view wx:elif="{{isPremiumActive}}" class="muted">暂无洞察数据。</view>
+    <view wx:else class="lock-hint">
+      <view class="muted">开通会员后可查看数据洞察报告</view>
+      <button class="btn-primary mt-12" bindtap="scrollToPlans">立即开通</button>
+    </view>
   </view>
 
   <view class="ocean-card">
-    <view class="section-title">私人小组创建权</view>
-    <input class="input mb-16" placeholder="小组名称" value="{{groupName}}" data-key="groupName" bindinput="bindField" />
-    <input class="input mb-16" placeholder="小组主题" value="{{groupTheme}}" data-key="groupTheme" bindinput="bindField" />
-    <textarea class="textarea" placeholder="小组简介（可选）" value="{{groupDesc}}" data-key="groupDesc" bindinput="bindField" />
-    <button class="btn-primary mt-16" bindtap="createPrivateGroup" loading="{{creatingGroup}}">创建私人小组</button>
+    <view class="section-title">私人小组创建权{{isPremiumActive ? '' : ' 🔒'}}</view>
+    <view wx:if="{{isPremiumActive}}">
+      <input class="input mb-16" placeholder="小组名称" value="{{groupName}}" data-key="groupName" bindinput="bindField" />
+      <input class="input mb-16" placeholder="小组主题" value="{{groupTheme}}" data-key="groupTheme" bindinput="bindField" />
+      <textarea class="textarea" placeholder="小组简介（可选）" value="{{groupDesc}}" data-key="groupDesc" bindinput="bindField" />
+      <button class="btn-primary mt-16" bindtap="createPrivateGroup" loading="{{creatingGroup}}">创建私人小组</button>
 
-    <view class="mt-20 muted">我的私人小组</view>
-    <block wx:if="{{privateGroups.length}}">
-      <block wx:for="{{privateGroups}}" wx:key="_id">
-        <view class="group-item">
-          <view class="row-between">
-            <view class="group-name">{{item.name}}</view>
-            <view class="muted">{{item.theme}}</view>
+      <view class="mt-20 muted">我的私人小组</view>
+      <block wx:if="{{privateGroups.length}}">
+        <block wx:for="{{privateGroups}}" wx:key="_id">
+          <view class="group-item">
+            <view class="row-between">
+              <view class="group-name">{{item.name}}</view>
+              <view class="muted">{{item.theme}}</view>
+            </view>
+            <view class="muted mt-12">{{item.description || '暂无简介'}}</view>
           </view>
-          <view class="muted mt-12">{{item.description || '暂无简介'}}</view>
-        </view>
+        </block>
       </block>
-    </block>
-    <view wx:else class="muted">还没有创建私人小组。</view>
+      <view wx:else class="muted">还没有创建私人小组。</view>
+    </view>
+    <view wx:else class="lock-hint">
+      <view class="muted">开通会员后可创建私人小组</view>
+      <button class="btn-primary mt-12" bindtap="scrollToPlans">立即开通</button>
+    </view>
   </view>
 
-  <view class="ocean-card">
+  <view class="ocean-card plans-section">
     <view class="section-title">可选方案</view>
     <block wx:for="{{plans}}" wx:key="key">
       <view class="plan-item">

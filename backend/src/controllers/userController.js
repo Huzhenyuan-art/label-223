@@ -29,7 +29,6 @@ const normalizePremium = (premium) => {
   };
 };
 
-const hasPremiumAccess = (user) => normalizePremium(user?.premium).isActive;
 const normalizeAccount = (value) => String(value || '').trim().toLowerCase();
 const getDefaultAvatar = (seed) => {
   const total = [...String(seed || '')].reduce((sum, char) => sum + char.charCodeAt(0), 0);
@@ -452,13 +451,6 @@ exports.createPrivateGroup = async (req, res) => {
     const user = await User.findById(req.userId).lean();
     if (!user) {
       return res.status(404).json({ code: 1, message: 'User not found' });
-    }
-
-    if (!hasPremiumAccess(user)) {
-      return res.status(403).json({
-        code: 1,
-        message: 'Premium membership required to create private group'
-      });
     }
 
     const group = await PrivateGroup.create({

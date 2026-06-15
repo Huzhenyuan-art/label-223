@@ -51,7 +51,26 @@ const optionalAuth = async (req, res, next) => {
   }
 };
 
+const isPremiumActive = (premium) => {
+  if (!premium || !premium.isActive || !premium.expireAt) {
+    return false;
+  }
+  return new Date(premium.expireAt).getTime() > Date.now();
+};
+
+const requirePremium = (req, res, next) => {
+  const user = req.user;
+  if (!user || !isPremiumActive(user.premium)) {
+    return res.status(403).json({
+      code: 2,
+      message: '该功能为会员专属，请先开通会员'
+    });
+  }
+  return next();
+};
+
 module.exports = {
   auth,
-  optionalAuth
+  optionalAuth,
+  requirePremium
 };

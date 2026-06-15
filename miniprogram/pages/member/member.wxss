@@ -84,3 +84,8 @@
   background: #e5edf2;
   color: #648290;
 }
+
+.lock-hint {
+  text-align: center;
+  padding: 32rpx 0;
+}
