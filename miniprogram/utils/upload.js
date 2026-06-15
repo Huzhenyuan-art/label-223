@@ -43,15 +43,34 @@ const chooseImage = (options = {}) => {
   });
 };
 
+const AUDIO_EXTENSIONS = ['mp3', 'wav', 'ogg', 'aac', 'm4a'];
+
+const isAudioFile = (fileName) => {
+  if (!fileName) return false;
+  const ext = fileName.split('.').pop().toLowerCase();
+  return AUDIO_EXTENSIONS.includes(ext);
+};
+
 const chooseAudio = () => {
   return new Promise((resolve, reject) => {
     wx.chooseMessageFile({
       count: 1,
       type: 'file',
-      extension: ['mp3', 'wav', 'ogg', 'aac', 'm4a'],
+      extension: AUDIO_EXTENSIONS,
       success: (res) => {
         if (res.tempFiles && res.tempFiles.length > 0) {
           const file = res.tempFiles[0];
+
+          if (!isAudioFile(file.name)) {
+            wx.showToast({
+              title: '请选择音频文件（mp3/wav/ogg/aac/m4a）',
+              icon: 'none',
+              duration: 2500
+            });
+            reject(new Error('文件类型不支持'));
+            return;
+          }
+
           resolve([{
             tempFilePath: file.path,
             size: file.size,
