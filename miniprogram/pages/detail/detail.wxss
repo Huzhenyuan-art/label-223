@@ -135,3 +135,60 @@
   padding: 20rpx 0;
   font-size: 24rpx;
 }
+
+.reply-action {
+  margin-top: 12rpx;
+  color: #0a5d7b;
+  font-size: 24rpx;
+  font-weight: 500;
+}
+
+.reply-list {
+  margin-top: 16rpx;
+  padding-left: 24rpx;
+  border-left: 4rpx solid #d4e8f1;
+}
+
+.reply-item {
+  padding: 12rpx 0;
+  border-bottom: 1rpx solid #eef6fa;
+}
+
+.reply-item:last-child {
+  border-bottom: none;
+}
+
+.reply-tag {
+  font-size: 22rpx;
+  color: #0c5f7f;
+  font-weight: 600;
+}
+
+.reply-content {
+  margin-top: 6rpx;
+  font-size: 26rpx;
+  color: #345462;
+}
+
+.reply-form {
+  margin-top: 16rpx;
+  padding: 16rpx;
+  background: #f2f8fc;
+  border-radius: 12rpx;
+}
+
+.reply-hint {
+  font-size: 24rpx;
+}
+
+.reply-actions {
+  gap: 12rpx;
+}
+
+.reply-cancel-btn,
+.reply-submit-btn {
+  flex: 1;
+  height: 72rpx;
+  line-height: 72rpx;
+  font-size: 26rpx;
+}

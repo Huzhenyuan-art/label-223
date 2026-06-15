@@ -133,6 +133,7 @@ exports.createComment = async (req, res) => {
     const comment = await Comment.create({
       post: postId,
       user: req.userId,
+      parentComment: null,
       dynamicTag: req.body.dynamicTag,
       content: req.body.content
     });
@@ -146,6 +147,47 @@ exports.createComment = async (req, res) => {
     return res.status(201).json({ code: 0, data: comment });
   } catch (error) {
     logger.error(`Create comment error: ${error.message}`);
+    return res.status(500).json({ code: 1, message: 'Server error' });
+  }
+};
+
+exports.createCommentReply = async (req, res) => {
+  try {
+    const postId = req.params.id;
+    const parentCommentId = req.params.commentId;
+
+    const post = await Post.findById(postId);
+    if (!post) {
+      return res.status(404).json({ code: 1, message: 'Post not found' });
+    }
+
+    const parentComment = await Comment.findById(parentCommentId);
+    if (!parentComment) {
+      return res.status(404).json({ code: 1, message: 'Parent comment not found' });
+    }
+
+    if (parentComment.parentComment) {
+      return res.status(400).json({ code: 1, message: 'Only one level of reply is allowed' });
+    }
+
+    const reply = await Comment.create({
+      post: postId,
+      user: req.userId,
+      parentComment: parentCommentId,
+      dynamicTag: req.body.dynamicTag,
+      content: req.body.content
+    });
+
+    await Post.findByIdAndUpdate(postId, { $inc: { commentCount: 1 } });
+
+    await reply.populate('user', 'nickname avatar');
+    await reply.populate('parentComment', '_id');
+
+    logger.info(`Comment reply created: ${reply._id} -> ${parentCommentId}`);
+
+    return res.status(201).json({ code: 0, data: reply });
+  } catch (error) {
+    logger.error(`Create comment reply error: ${error.message}`);
     return res.status(500).json({ code: 1, message: 'Server error' });
   }
 };

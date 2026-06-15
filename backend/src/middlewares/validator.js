@@ -68,6 +68,14 @@ const commentValidator = [
   validate
 ];
 
+const commentReplyValidator = [
+  param('id').isMongoId(),
+  param('commentId').isMongoId(),
+  body('content').notEmpty().isString().trim().isLength({ min: 1, max: 500 }),
+  body('dynamicTag').notEmpty().isString().trim().matches(TAG_REGEX),
+  validate
+];
+
 const sendMessageValidator = [
   body('receiverId').notEmpty().isMongoId(),
   body('senderDynamicTag').notEmpty().isString().trim().matches(TAG_REGEX),
@@ -125,6 +133,7 @@ module.exports = {
   superEchoValidator,
   postIdValidator,
   commentValidator,
+  commentReplyValidator,
   sendMessageValidator,
   revealValidator,
   tagSkinValidator,

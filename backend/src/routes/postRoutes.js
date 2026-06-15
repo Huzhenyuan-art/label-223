@@ -6,7 +6,8 @@ const {
   updatePostValidator,
   superEchoValidator,
   postIdValidator,
-  commentValidator
+  commentValidator,
+  commentReplyValidator
 } = require('../middlewares/validator');
 
 const router = express.Router();
@@ -19,6 +20,7 @@ router.put('/:id', updatePostValidator, postController.updatePost);
 router.delete('/:id', postIdValidator, postController.deletePost);
 router.post('/:id/resonance', postIdValidator, postController.toggleResonance);
 router.post('/:id/comment', commentValidator, postController.createComment);
+router.post('/:id/comment/:commentId/reply', commentReplyValidator, postController.createCommentReply);
 router.post('/:id/super-echo', superEchoValidator, postController.createSuperEcho);
 
 module.exports = router;

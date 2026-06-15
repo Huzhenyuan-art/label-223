@@ -25,6 +25,7 @@ const config = {
     POST_PREFIX: '/api/posts',
     UPDATE_POST: '/api/posts',
     DELETE_POST: '/api/posts',
+    POST_COMMENT_REPLY_PREFIX: '/api/posts',
 
     CONVERSATIONS: '/api/messages/conversations',
     SEND_MESSAGE: '/api/messages/send',

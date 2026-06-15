@@ -40,7 +40,10 @@ Page({
     resonanceLimit: 20,
     resonanceTotal: 0,
     resonanceLoading: false,
-    resonanceHasMore: true
+    resonanceHasMore: true,
+    replyingTo: null,
+    replyTag: '#回响者',
+    replyContent: ''
   },
 
   onLoad(options) {
@@ -71,7 +74,11 @@ Page({
       const detail = await request.get(`${config.API.POST_DETAIL_PREFIX}/${id}`);
       const comments = (detail.comments || []).map((item) => ({
         ...item,
-        timeAgo: formatTimeAgo(item.createdAt)
+        timeAgo: formatTimeAgo(item.createdAt),
+        replies: (item.replies || []).map((reply) => ({
+          ...reply,
+          timeAgo: formatTimeAgo(reply.createdAt)
+        }))
       }));
 
       const superEchoes = (detail.superEchoes || []).map((item) => ({
@@ -103,6 +110,57 @@ Page({
       showFriendlyError(error, '详情加载失败，请稍后重试');
     } finally {
       this.setData({ loading: false });
+    }
+  },
+
+  startReply(event) {
+    const commentId = event.currentTarget.dataset.commentId;
+    const commentTag = event.currentTarget.dataset.commentTag;
+    this.setData({
+      replyingTo: { commentId, commentTag },
+      replyContent: ''
+    });
+  },
+
+  cancelReply() {
+    this.setData({
+      replyingTo: null,
+      replyContent: ''
+    });
+  },
+
+  async submitReply() {
+    const { replyingTo, replyTag, replyContent, id } = this.data;
+    if (!replyingTo) {
+      return;
+    }
+
+    const content = replyContent.trim();
+    if (!content) {
+      wx.showToast({ title: '请输入回复内容', icon: 'none' });
+      return;
+    }
+
+    const dynamicTag = replyTag.startsWith('#') || replyTag.startsWith('＃')
+      ? replyTag
+      : `#${replyTag}`;
+
+    try {
+      await request.post(
+        `${config.API.POST_COMMENT_REPLY_PREFIX}/${id}/comment/${replyingTo.commentId}/reply`,
+        {
+          dynamicTag,
+          content
+        }
+      );
+      this.setData({
+        replyingTo: null,
+        replyContent: ''
+      });
+      wx.showToast({ title: '回复已发送', icon: 'success' });
+      this.loadDetail();
+    } catch (error) {
+      showFriendlyError(error, '回复发送失败，请稍后重试');
     }
   },
 

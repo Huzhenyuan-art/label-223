@@ -13,6 +13,12 @@ const commentSchema = new mongoose.Schema(
       ref: 'User',
       required: true
     },
+    parentComment: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Comment',
+      default: null,
+      index: true
+    },
     dynamicTag: {
       type: String,
       required: true,
@@ -31,6 +37,6 @@ const commentSchema = new mongoose.Schema(
   }
 );
 
-commentSchema.index({ post: 1, createdAt: -1 });
+commentSchema.index({ post: 1, parentComment: 1, createdAt: -1 });
 
 module.exports = mongoose.model('Comment', commentSchema);

@@ -273,10 +273,10 @@ exports.getPostDetail = async (req, res) => {
       return res.status(404).json({ code: 1, message: 'Post not found' });
     }
 
-    const [comments, superEchoes] = await Promise.all([
+    const [allComments, superEchoes] = await Promise.all([
       Comment.find({ post: postId })
         .populate('user', 'nickname avatar')
-        .sort({ createdAt: -1 })
+        .sort({ createdAt: 1 })
         .limit(config.maxCommentsPerQuery)
         .lean(),
       Post.find({ parentPost: postId })
@@ -284,6 +284,27 @@ exports.getPostDetail = async (req, res) => {
         .sort({ createdAt: 1 })
         .lean()
     ]);
+
+    const parentComments = allComments.filter((c) => !c.parentComment);
+    const replyMap = new Map();
+    allComments
+      .filter((c) => c.parentComment)
+      .forEach((reply) => {
+        const pid = reply.parentComment.toString();
+        if (!replyMap.has(pid)) {
+          replyMap.set(pid, []);
+        }
+        replyMap.get(pid).push(reply);
+      });
+
+    const comments = parentComments
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+      .map((parent) => ({
+        ...parent,
+        replies: (replyMap.get(parent._id.toString()) || []).sort(
+          (a, b) => new Date(a.createdAt) - new Date(b.createdAt)
+        )
+      }));
 
     const [enrichedPost] = await attachInteractionState([post], req.userId);
     const enrichedSuperEchoes = await attachInteractionState(superEchoes, req.userId);

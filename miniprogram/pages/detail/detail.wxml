@@ -101,13 +101,38 @@
   <view class="ocean-card">
     <view class="section-title">回声讨论</view>
     <block wx:if="{{comments.length}}">
-      <block wx:for="{{comments}}" wx:key="_id">
+      <block wx:for="{{comments}}" wx:for-item="parentComment" wx:key="_id">
         <view class="comment-item">
           <view class="row-between">
-            <view class="tree-tag">{{item.dynamicTag}}</view>
-            <view class="muted">{{item.timeAgo}}</view>
+            <view class="tree-tag">{{parentComment.dynamicTag}}</view>
+            <view class="muted">{{parentComment.timeAgo}}</view>
           </view>
-          <view class="comment-content">{{item.content}}</view>
+          <view class="comment-content">{{parentComment.content}}</view>
+          <view class="reply-action" bindtap="startReply" data-comment-id="{{parentComment._id}}" data-comment-tag="{{parentComment.dynamicTag}}">回复</view>
+
+          <block wx:if="{{parentComment.replies && parentComment.replies.length}}">
+            <view class="reply-list">
+              <block wx:for="{{parentComment.replies}}" wx:for-item="reply" wx:key="_id">
+                <view class="reply-item">
+                  <view class="row-between">
+                    <view class="reply-tag">{{reply.dynamicTag}}</view>
+                    <view class="muted">{{reply.timeAgo}}</view>
+                  </view>
+                  <view class="reply-content">{{reply.content}}</view>
+                </view>
+              </block>
+            </view>
+          </block>
+
+          <view wx:if="{{replyingTo && replyingTo.commentId === parentComment._id}}" class="reply-form">
+            <view class="reply-hint muted">正在回复 {{replyingTo.commentTag}}</view>
+            <input class="input mb-16 mt-16" placeholder="你的动态标签" value="{{replyTag}}" data-key="replyTag" bindinput="bindField" />
+            <textarea class="textarea" placeholder="写下你的回复" value="{{replyContent}}" data-key="replyContent" bindinput="bindField" />
+            <view class="row mt-16 reply-actions">
+              <button class="btn-secondary reply-cancel-btn" bindtap="cancelReply">取消</button>
+              <button class="btn-primary reply-submit-btn" bindtap="submitReply">发送回复</button>
+            </view>
+          </view>
         </view>
       </block>
     </block>
