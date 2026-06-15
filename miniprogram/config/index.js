@@ -20,6 +20,8 @@ const config = {
     CREATE_POST: '/api/posts',
     MY_POSTS: '/api/posts/me',
     POST_PREFIX: '/api/posts',
+    UPDATE_POST: '/api/posts',
+    DELETE_POST: '/api/posts',
 
     CONVERSATIONS: '/api/messages/conversations',
     SEND_MESSAGE: '/api/messages/send',

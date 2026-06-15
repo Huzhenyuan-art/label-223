@@ -68,6 +68,13 @@ button {
   line-height: 86rpx;
 }
 
+.btn-danger {
+  background: #fff1f0;
+  color: #e74c3c;
+  height: 86rpx;
+  line-height: 86rpx;
+}
+
 .input,
 .textarea {
   width: 100%;

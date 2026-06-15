@@ -104,10 +104,24 @@ const paginationValidator = [
   validate
 ];
 
+const updatePostValidator = [
+  param('id').isMongoId(),
+  body('title').optional().isString().trim().isLength({ max: 80 }),
+  body('contentText').notEmpty().isString().trim().isLength({ min: 2, max: 2000 }),
+  body('audioUrl').optional().isString().trim().isLength({ max: 500 }),
+  body('linkUrl').optional().isString().trim().isLength({ max: 500 }),
+  body('coverImage').optional().isString().trim().isLength({ max: 500 }),
+  body('dynamicTag').notEmpty().isString().trim().matches(TAG_REGEX),
+  body('tags').isArray({ min: 1, max: 5 }),
+  body('tags.*').isString().trim().isLength({ min: 1, max: 20 }),
+  validate
+];
+
 module.exports = {
   loginValidator,
   registerValidator,
   createPostValidator,
+  updatePostValidator,
   superEchoValidator,
   postIdValidator,
   commentValidator,

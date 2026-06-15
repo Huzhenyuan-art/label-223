@@ -1,7 +1,9 @@
-<view class="container">
+<view wx:if="{{loading}}" class="empty">正在加载...</view>
+
+<view class="container" wx:else>
   <view class="hero-card">
-    <view class="hero-title">频率发射站</view>
-    <view class="hero-subtitle">每条内容都可以使用新的动态标签，自由表达不被固定身份束缚。</view>
+    <view class="hero-title">{{pageTitle}}</view>
+    <view class="hero-subtitle">{{pageSubtitle}}</view>
   </view>
 
   <view class="ocean-card">
@@ -24,5 +26,5 @@
     <input class="input" placeholder="封面图片链接（可选）" value="{{coverImage}}" data-key="coverImage" bindinput="bindField" />
   </view>
 
-  <button class="btn-primary" bindtap="submitPost" loading="{{submitting}}">发射频率</button>
+  <button class="btn-primary" bindtap="submitPost" loading="{{submitting}}">{{submitText}}</button>
 </view>

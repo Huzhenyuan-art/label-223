@@ -5,6 +5,15 @@
       <view class="muted">{{post.timeAgo}}</view>
     </view>
 
+    <view wx:if="{{post.updatedAt && post.updatedAt !== post.createdAt}}" class="muted mb-12 edited-hint">
+      最后编辑于 {{post.updatedAtText}}
+    </view>
+
+    <view wx:if="{{isOwnPost && post.type === 'origin'}}" class="row-between mb-16 owner-actions">
+      <button class="btn-secondary edit-btn" bindtap="handleEdit">编辑</button>
+      <button class="btn-danger delete-btn" bindtap="handleDelete">删除</button>
+    </view>
+
     <view wx:if="{{post.title}}" class="post-title">{{post.title}}</view>
     <view class="post-content">{{post.contentText}}</view>
 

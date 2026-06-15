@@ -4,6 +4,11 @@ const { parseTagsInput, ensureLogin, showFriendlyError } = require('../../utils/
 
 Page({
   data: {
+    editId: '',
+    isEditMode: false,
+    pageTitle: '频率发射站',
+    pageSubtitle: '每条内容都可以使用新的动态标签，自由表达不被固定身份束缚。',
+    submitText: '发射频率',
     title: '',
     contentText: '',
     dynamicTag: '#深夜哲学家',
@@ -12,11 +17,66 @@ Page({
     linkUrl: '',
     coverImage: '',
     presets: ['#深夜哲学家', '#冷门乐器控', '#慢热社交派', '#纸页漫游者', '#声景采样师'],
-    submitting: false
+    submitting: false,
+    loading: false
   },
 
-  onShow() {
+  onLoad(options) {
+    if (options.editId) {
+      this.setData({
+        editId: options.editId,
+        isEditMode: true,
+        pageTitle: '编辑频率',
+        pageSubtitle: '修改你的频率内容，原有的共鸣、回声与合鸣将保留。',
+        submitText: '保存修改'
+      });
+    }
+  },
+
+  async onShow() {
     ensureLogin();
+    if (this.data.isEditMode && this.data.editId && !this.data.contentText) {
+      await this.loadPostForEdit();
+    }
+  },
+
+  async loadPostForEdit() {
+    const editId = this.data.editId;
+    if (!editId) {
+      return;
+    }
+
+    this.setData({ loading: true });
+    try {
+      const detail = await request.get(`${config.API.POST_DETAIL_PREFIX}/${editId}`);
+      const post = detail.post;
+
+      if (post?.author?._id !== wx.getStorageSync('userId')) {
+        wx.showToast({ title: '无权限编辑此内容', icon: 'none' });
+        setTimeout(() => wx.navigateBack(), 1500);
+        return;
+      }
+
+      if (post?.type !== 'origin') {
+        wx.showToast({ title: '仅原频可编辑', icon: 'none' });
+        setTimeout(() => wx.navigateBack(), 1500);
+        return;
+      }
+
+      this.setData({
+        title: post.title || '',
+        contentText: post.contentText || '',
+        dynamicTag: post.dynamicTag || '#深夜哲学家',
+        tagsInput: (post.tags || []).join(', '),
+        audioUrl: post.contentAudio || '',
+        linkUrl: post.contentLink || '',
+        coverImage: post.coverImage || ''
+      });
+    } catch (error) {
+      showFriendlyError(error, '加载失败，请稍后重试');
+    } finally {
+      this.setData({ loading: false });
+    }
   },
 
   usePresetTag(event) {
@@ -53,33 +113,41 @@ Page({
       ? this.data.dynamicTag
       : `#${this.data.dynamicTag}`;
 
+    const postData = {
+      title: this.data.title.trim(),
+      contentText,
+      dynamicTag,
+      tags,
+      audioUrl: this.data.audioUrl.trim(),
+      linkUrl: this.data.linkUrl.trim(),
+      coverImage: this.data.coverImage.trim()
+    };
+
     this.setData({ submitting: true });
 
     try {
-      const post = await request.post(config.API.CREATE_POST, {
-        title: this.data.title.trim(),
-        contentText,
-        dynamicTag,
-        tags,
-        audioUrl: this.data.audioUrl.trim(),
-        linkUrl: this.data.linkUrl.trim(),
-        coverImage: this.data.coverImage.trim()
-      });
+      let post;
+      if (this.data.isEditMode && this.data.editId) {
+        post = await request.put(`${config.API.UPDATE_POST}/${this.data.editId}`, postData);
+        wx.showToast({ title: '修改已保存', icon: 'success' });
+      } else {
+        post = await request.post(config.API.CREATE_POST, postData);
+        wx.showToast({ title: '频率发射成功', icon: 'success' });
 
-      wx.showToast({ title: '频率发射成功', icon: 'success' });
+        this.setData({
+          title: '',
+          contentText: '',
+          tagsInput: '',
+          audioUrl: '',
+          linkUrl: '',
+          coverImage: ''
+        });
+      }
 
-      this.setData({
-        title: '',
-        contentText: '',
-        tagsInput: '',
-        audioUrl: '',
-        linkUrl: '',
-        coverImage: ''
-      });
-
-      wx.navigateTo({ url: `/pages/detail/detail?id=${post._id}` });
+      wx.redirectTo({ url: `/pages/detail/detail?id=${post._id}` });
     } catch (error) {
-      showFriendlyError(error, '发射失败，请稍后重试');
+      const fallbackMsg = this.data.isEditMode ? '保存失败，请稍后重试' : '发射失败，请稍后重试';
+      showFriendlyError(error, fallbackMsg);
     } finally {
       this.setData({ submitting: false });
     }

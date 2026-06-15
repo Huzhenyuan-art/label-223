@@ -1,6 +1,6 @@
 const request = require('../../utils/request');
 const config = require('../../config/index');
-const { ensureLogin, formatTimeAgo, parseTagsInput, showFriendlyError } = require('../../utils/util');
+const { ensureLogin, formatTimeAgo, formatDateLabel, parseTagsInput, showFriendlyError } = require('../../utils/util');
 
 const flattenTree = (node, depth = 0, arr = []) => {
   if (!node) {
@@ -73,12 +73,20 @@ Page({
         timeAgo: formatTimeAgo(item.createdAt)
       }));
 
+      const post = detail.post;
+      const updatedAt = post.updatedAt;
+      const createdAt = post.createdAt;
+      const hasEdited = updatedAt && createdAt && new Date(updatedAt).getTime() > new Date(createdAt).getTime() + 1000;
+
       this.setData({
         post: {
-          ...detail.post,
-          timeAgo: formatTimeAgo(detail.post?.createdAt)
+          ...post,
+          timeAgo: formatTimeAgo(createdAt),
+          updatedAtText: hasEdited ? formatDateLabel(updatedAt, true) : '',
+          updatedAt,
+          createdAt
         },
-        isOwnPost: detail.post?.author?._id === wx.getStorageSync('userId'),
+        isOwnPost: post?.author?._id === wx.getStorageSync('userId'),
         comments,
         superEchoes
       });
@@ -231,5 +239,44 @@ Page({
     } finally {
       this.setData({ waveSending: false });
     }
+  },
+
+  handleEdit() {
+    const post = this.data.post;
+    if (!post) {
+      return;
+    }
+    wx.navigateTo({
+      url: `/pages/publish/publish?editId=${post._id}`
+    });
+  },
+
+  handleDelete() {
+    const post = this.data.post;
+    if (!post) {
+      return;
+    }
+
+    wx.showModal({
+      title: '确认删除',
+      content: '删除后该频率及其所有共鸣、回声、合鸣都将永久消失，无法恢复。确定要删除吗？',
+      confirmText: '确认删除',
+      confirmColor: '#e74c3c',
+      success: async (res) => {
+        if (!res.confirm) {
+          return;
+        }
+
+        try {
+          await request.delete(`${config.API.DELETE_POST}/${post._id}`);
+          wx.showToast({ title: '删除成功', icon: 'success' });
+          setTimeout(() => {
+            wx.navigateBack();
+          }, 1500);
+        } catch (error) {
+          showFriendlyError(error, '删除失败，请稍后重试');
+        }
+      }
+    });
   }
 });

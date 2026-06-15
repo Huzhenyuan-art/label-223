@@ -70,3 +70,20 @@
   color: #0f7399;
   font-size: 24rpx;
 }
+
+.edited-hint {
+  font-size: 24rpx;
+  font-style: italic;
+}
+
+.owner-actions {
+  gap: 16rpx;
+}
+
+.edit-btn,
+.delete-btn {
+  flex: 1;
+  height: 72rpx;
+  line-height: 72rpx;
+  font-size: 26rpx;
+}
