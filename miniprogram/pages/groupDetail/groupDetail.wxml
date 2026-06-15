@@ -1,0 +1,104 @@
+<view wx:if="{{loading}}" class="empty">正在加载小组信息...</view>
+
+<view class="container" wx:elif="{{group}}">
+  <view class="hero-card">
+    <view class="row-between">
+      <view style="flex:1;min-width:0;">
+        <view class="hero-title">{{group.name}}</view>
+        <view class="hero-subtitle">#{{group.theme}}</view>
+        <view class="hero-subtitle mt-12" wx:if="{{group.description}}">{{group.description}}</view>
+      </view>
+    </view>
+    <view class="hero-stats row mt-20">
+      <view class="hero-stat">
+        <view class="hero-stat-value">{{group.memberCount}}</view>
+        <view class="hero-stat-label">成员</view>
+      </view>
+      <view class="hero-stat">
+        <view class="hero-stat-value">{{group.postCount}}</view>
+        <view class="hero-stat-label">帖子</view>
+      </view>
+    </view>
+  </view>
+
+  <view class="ocean-card">
+    <view class="row-between mb-16">
+      <view class="section-title section-title-flex">小组邀请码</view>
+      <button wx:if="{{isOwner}}" class="btn-secondary mini-btn" bindtap="refreshInviteCode">重置</button>
+    </view>
+    <view class="invite-box" bindtap="copyInviteCode">
+      <view class="invite-code">{{group.inviteCode}}</view>
+      <view class="invite-hint muted">点击复制邀请码分享给好友</view>
+    </view>
+  </view>
+
+  <view class="ocean-card">
+    <view class="row-between">
+      <view class="section-title section-title-flex">成员（{{group.memberCount}}）</view>
+      <button class="btn-secondary mini-btn" bindtap="goMembers">管理</button>
+    </view>
+    <scroll-view class="members-scroll" scroll-x="{{true}}">
+      <view class="members-row">
+        <block wx:for="{{group.members}}" wx:key="user.id" wx:for-item="member">
+          <view class="member-item">
+            <image class="member-avatar" src="{{member.user.avatar || '/images/avatar-default.png'}}" />
+            <view class="member-name">{{member.user.nickname}}</view>
+            <view wx:if="{{member.role === 'owner'}}" class="member-role">组长</view>
+          </view>
+        </block>
+      </view>
+    </scroll-view>
+  </view>
+
+  <view class="ocean-card">
+    <view class="row-between mb-16">
+      <view class="section-title">小组动态</view>
+      <button class="btn-primary mini-btn" bindtap="openPostModal">发帖</button>
+    </view>
+
+    <view wx:if="{{posts.length}}">
+      <block wx:for="{{posts}}" wx:key="id">
+        <view class="post-item">
+          <view class="post-header">
+            <image class="post-avatar" src="{{item.author.avatar || '/images/avatar-default.png'}}" />
+            <view class="post-author-info">
+              <view class="post-author">{{item.author.nickname}}</view>
+              <view class="muted post-time">{{item.timeAgo}}</view>
+            </view>
+          </view>
+          <view class="post-title" wx:if="{{item.title}}">{{item.title}}</view>
+          <view class="post-content">{{item.content}}</view>
+        </view>
+      </block>
+      <view wx:if="{{loadingPosts}}" class="muted load-more">加载中...</view>
+      <view wx:elif="{{!hasMore}}" class="muted load-more">没有更多了</view>
+    </view>
+    <view wx:else class="empty small-empty">还没有帖子，来发布第一条吧</view>
+  </view>
+
+  <button wx:if="{{!isOwner}}" class="btn-danger mt-16" bindtap="leaveGroup">退出小组</button>
+</view>
+
+<view wx:if="{{showPostModal}}" class="modal-mask" bindtap="closePostModal">
+  <view class="modal-content post-modal" catchtap="">
+    <view class="modal-title">发布新帖</view>
+    <input
+      class="input mt-16 mb-16"
+      placeholder="标题（可选）"
+      value="{{postTitle}}"
+      bindinput="onPostTitleInput"
+      maxlength="80"
+    />
+    <textarea
+      class="textarea mb-16"
+      placeholder="写下你想分享的内容..."
+      value="{{postContent}}"
+      bindinput="onPostContentInput"
+      maxlength="2000"
+    />
+    <view class="modal-actions">
+      <button class="btn-secondary modal-btn" bindtap="closePostModal">取消</button>
+      <button class="btn-primary modal-btn" bindtap="submitPost" loading="{{submittingPost}}">发布</button>
+    </view>
+  </view>
+</view>

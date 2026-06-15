@@ -125,6 +125,42 @@ const updatePostValidator = [
   validate
 ];
 
+const groupIdValidator = [
+  param('groupId').isMongoId(),
+  validate
+];
+
+const createGroupPostValidator = [
+  param('groupId').isMongoId(),
+  body('title').optional().isString().trim().isLength({ max: 80 }),
+  body('content').notEmpty().isString().trim().isLength({ min: 1, max: 2000 }),
+  body('images').optional().isArray({ max: 9 }),
+  body('images.*').optional().isString().trim().isLength({ max: 500 }),
+  validate
+];
+
+const inviteCodeValidator = [
+  body('inviteCode').notEmpty().isString().trim().isLength({ min: 1, max: 32 }),
+  validate
+];
+
+const inviteMemberValidator = [
+  param('groupId').isMongoId(),
+  body('userId').notEmpty().isMongoId(),
+  validate
+];
+
+const removeMemberValidator = [
+  param('groupId').isMongoId(),
+  param('memberId').isMongoId(),
+  validate
+];
+
+const searchUserValidator = [
+  query('keyword').notEmpty().isString().trim().isLength({ min: 1, max: 40 }),
+  validate
+];
+
 module.exports = {
   loginValidator,
   registerValidator,
@@ -139,5 +175,11 @@ module.exports = {
   tagSkinValidator,
   createPrivateGroupValidator,
   checkoutValidator,
-  paginationValidator
+  paginationValidator,
+  groupIdValidator,
+  createGroupPostValidator,
+  inviteCodeValidator,
+  inviteMemberValidator,
+  removeMemberValidator,
+  searchUserValidator
 };

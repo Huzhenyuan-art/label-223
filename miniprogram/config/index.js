@@ -11,7 +11,6 @@ const config = {
     FAVORITES_BATCH_REMOVE: '/api/users/me/favorites/batch-remove',
     TOGGLE_FAVORITE_PREFIX: '/api/users/me/favorites',
     TAG_SKIN: '/api/users/me/tag-skin',
-    PRIVATE_GROUPS: '/api/users/me/private-groups',
     USER_PUBLIC_PREFIX: '/api/users/public',
 
     OCEAN: '/api/feed/ocean',
@@ -43,7 +42,13 @@ const config = {
 
     UPLOAD_IMAGE: '/api/upload/image',
     UPLOAD_AUDIO: '/api/upload/audio',
-    DELETE_MEDIA: '/api/upload'
+    DELETE_MEDIA: '/api/upload',
+
+    PRIVATE_GROUPS_PREFIX: '/api/private-groups',
+    PRIVATE_GROUPS_MY: '/api/private-groups/me',
+    PRIVATE_GROUPS_CREATE: '/api/private-groups',
+    PRIVATE_GROUPS_JOIN: '/api/private-groups/join',
+    PRIVATE_GROUPS_SEARCH_USERS: '/api/private-groups/search-users'
   }
 };
 

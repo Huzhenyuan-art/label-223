@@ -10,6 +10,7 @@ const BrandCamp = require('./BrandCamp');
 const DerivativeWaitlist = require('./DerivativeWaitlist');
 const BrandCampInquiry = require('./BrandCampInquiry');
 const PrivateGroup = require('./PrivateGroup');
+const PrivateGroupPost = require('./PrivateGroupPost');
 
 module.exports = {
   User,
@@ -23,5 +24,6 @@ module.exports = {
   BrandCamp,
   DerivativeWaitlist,
   BrandCampInquiry,
-  PrivateGroup
+  PrivateGroup,
+  PrivateGroupPost
 };

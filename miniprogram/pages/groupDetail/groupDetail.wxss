@@ -1,0 +1,184 @@
+.hero-stats {
+  gap: 40rpx;
+}
+
+.hero-stat {
+  text-align: center;
+}
+
+.hero-stat-value {
+  font-size: 36rpx;
+  font-weight: 600;
+}
+
+.hero-stat-label {
+  font-size: 22rpx;
+  opacity: 0.85;
+}
+
+.invite-box {
+  background: #ffffff;
+  border: 2rpx dashed #9cc9dc;
+  border-radius: 16rpx;
+  padding: 24rpx;
+  text-align: center;
+}
+
+.invite-code {
+  font-size: 48rpx;
+  font-weight: 700;
+  letter-spacing: 8rpx;
+  color: #0a5c7a;
+  font-family: 'Courier New', monospace;
+}
+
+.invite-hint {
+  margin-top: 10rpx;
+  font-size: 24rpx;
+}
+
+.members-scroll {
+  white-space: nowrap;
+}
+
+.members-row {
+  display: inline-flex;
+  gap: 20rpx;
+}
+
+.member-item {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  width: 120rpx;
+}
+
+.member-avatar {
+  width: 80rpx;
+  height: 80rpx;
+  border-radius: 50%;
+  background: #e0edf3;
+}
+
+.member-name {
+  font-size: 22rpx;
+  color: #1f3a48;
+  margin-top: 8rpx;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 120rpx;
+}
+
+.member-role {
+  font-size: 20rpx;
+  color: #e6a33c;
+  background: #fff7e6;
+  border-radius: 999rpx;
+  padding: 2rpx 10rpx;
+  margin-top: 4rpx;
+}
+
+.post-item {
+  border-bottom: 1rpx solid #e0edf3;
+  padding: 20rpx 0;
+}
+
+.post-item:last-child {
+  border-bottom: none;
+}
+
+.post-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 12rpx;
+}
+
+.post-avatar {
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: 50%;
+  margin-right: 16rpx;
+  background: #e0edf3;
+}
+
+.post-author-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.post-author {
+  font-weight: 600;
+  font-size: 28rpx;
+}
+
+.post-time {
+  font-size: 22rpx;
+}
+
+.post-title {
+  font-weight: 600;
+  font-size: 30rpx;
+  margin-bottom: 8rpx;
+  color: #0f3f55;
+}
+
+.post-content {
+  font-size: 28rpx;
+  line-height: 1.6;
+  color: #1f3a48;
+}
+
+.load-more {
+  text-align: center;
+  padding: 24rpx 0 8rpx;
+  font-size: 24rpx;
+}
+
+.small-empty {
+  padding: 40rpx 20rpx;
+}
+
+.modal-mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+}
+
+.modal-content {
+  width: 640rpx;
+  max-height: 80vh;
+  overflow-y: auto;
+  background: #ffffff;
+  border-radius: 24rpx;
+  padding: 32rpx;
+  box-sizing: border-box;
+}
+
+.modal-title {
+  font-size: 32rpx;
+  font-weight: 600;
+  text-align: center;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 16rpx;
+  margin-top: 8rpx;
+}
+
+.modal-btn {
+  flex: 1;
+}
+
+.post-modal {
+  padding-bottom: 32rpx;
+}

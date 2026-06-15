@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
-const { User, Post, Resonance, Comment, Message, RevealDecision, PrivateGroup } = require('../models');
+const { User, Post, Resonance, Comment, Message, RevealDecision } = require('../models');
 const logger = require('../utils/logger');
 const { signToken } = require('../utils/auth');
 
@@ -546,37 +546,4 @@ exports.updateTagSkin = async (req, res) => {
   }
 };
 
-exports.createPrivateGroup = async (req, res) => {
-  try {
-    const user = await User.findById(req.userId).lean();
-    if (!user) {
-      return res.status(404).json({ code: 1, message: 'User not found' });
-    }
 
-    const group = await PrivateGroup.create({
-      name: req.body.name,
-      theme: req.body.theme,
-      description: req.body.description || '',
-      owner: req.userId,
-      members: [req.userId]
-    });
-
-    return res.status(201).json({ code: 0, data: group });
-  } catch (error) {
-    logger.error(`Create private group error: ${error.message}`);
-    return res.status(500).json({ code: 1, message: 'Server error' });
-  }
-};
-
-exports.getMyPrivateGroups = async (req, res) => {
-  try {
-    const groups = await PrivateGroup.find({ owner: req.userId, status: 'active' })
-      .sort({ createdAt: -1 })
-      .lean();
-
-    return res.json({ code: 0, data: groups });
-  } catch (error) {
-    logger.error(`Get my private groups error: ${error.message}`);
-    return res.status(500).json({ code: 1, message: 'Server error' });
-  }
-};

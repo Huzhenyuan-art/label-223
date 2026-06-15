@@ -1,0 +1,76 @@
+<view wx:if="{{loading}}" class="empty">正在加载成员列表...</view>
+
+<view class="container" wx:else>
+  <view class="hero-card">
+    <view class="row-between">
+      <view style="flex:1;min-width:0;">
+        <view class="hero-title">小组成员</view>
+        <view class="hero-subtitle">共 {{members.length}} 位成员</view>
+      </view>
+    </view>
+  </view>
+
+  <view class="ocean-card">
+    <view class="row-between mb-16">
+      <view class="section-title section-title-flex">成员列表</view>
+      <button class="btn-primary mini-btn" bindtap="openInviteModal">邀请成员</button>
+    </view>
+
+    <block wx:for="{{members}}" wx:key="user.id" wx:for-item="member">
+      <view class="member-row">
+        <image class="member-avatar" src="{{member.user.avatar || '/images/avatar-default.png'}}" />
+        <view class="member-info">
+          <view class="member-name">{{member.user.nickname}}</view>
+          <view class="muted member-role-text" wx:if="{{member.role === 'owner'}}">组长</view>
+          <view class="muted member-role-text" wx:else>成员</view>
+        </view>
+        <button
+          wx:if="{{isOwner && member.role !== 'owner'}}"
+          class="btn-danger mini-btn"
+          data-id="{{member.user.id}}"
+          bindtap="removeMember"
+        >移除</button>
+      </view>
+    </block>
+  </view>
+</view>
+
+<view wx:if="{{showInviteModal}}" class="modal-mask" bindtap="closeInviteModal">
+  <view class="modal-content invite-modal" catchtap="">
+    <view class="modal-title">邀请成员</view>
+
+    <view class="search-row mt-16">
+      <input
+        class="input search-input"
+        placeholder="搜索昵称或账号"
+        value="{{searchKeyword}}"
+        bindinput="onSearchKeywordInput"
+        maxlength="40"
+      />
+      <button class="btn-primary search-btn" bindtap="doSearch" loading="{{searching}}">搜索</button>
+    </view>
+
+    <view class="search-results" wx:if="{{searchResults.length}}">
+      <block wx:for="{{searchResults}}" wx:key="id" wx:for-item="user">
+        <view class="search-result-item">
+          <image class="result-avatar" src="{{user.avatar || '/images/avatar-default.png'}}" />
+          <view class="result-info">
+            <view class="result-name">{{user.nickname}}</view>
+            <view class="muted result-account" wx:if="{{user.account}}">@{{user.account}}</view>
+          </view>
+          <button class="btn-primary mini-btn" data-id="{{user.id}}" bindtap="inviteUser">邀请</button>
+        </view>
+      </block>
+    </view>
+
+    <view wx:elif="{{searchKeyword && !searching}}" class="empty small-empty">
+      未找到相关用户
+    </view>
+
+    <view wx:elif="{{!searchKeyword}}" class="empty small-empty">
+      输入关键词搜索用户
+    </view>
+
+    <button class="btn-secondary mt-16" bindtap="closeInviteModal">关闭</button>
+  </view>
+</view>

@@ -10,7 +10,11 @@
     "pages/member/member",
     "pages/publicProfile/publicProfile",
     "pages/login/login",
-    "pages/favorites/favorites"
+    "pages/favorites/favorites",
+    "pages/groups/groups",
+    "pages/groupCreate/groupCreate",
+    "pages/groupDetail/groupDetail",
+    "pages/groupMembers/groupMembers"
   ],
   "window": {
     "backgroundTextStyle": "dark",

@@ -1,0 +1,88 @@
+.action-row {
+  display: flex;
+  gap: 16rpx;
+  margin-bottom: 24rpx;
+}
+
+.action-btn {
+  flex: 1;
+}
+
+.group-item {
+  border-bottom: 1rpx solid #e0edf3;
+  padding: 20rpx 0;
+}
+
+.group-item:last-child {
+  border-bottom: none;
+}
+
+.group-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.group-name {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #0f3f55;
+}
+
+.group-theme {
+  font-size: 24rpx;
+  color: #0b6281;
+  margin-top: 6rpx;
+}
+
+.group-desc {
+  margin-top: 10rpx;
+  font-size: 26rpx;
+}
+
+.group-time {
+  margin-top: 10rpx;
+  font-size: 22rpx;
+}
+
+.group-stats {
+  text-align: right;
+  font-size: 24rpx;
+  margin-left: 20rpx;
+}
+
+.modal-mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+}
+
+.modal-content {
+  width: 600rpx;
+  background: #ffffff;
+  border-radius: 24rpx;
+  padding: 32rpx;
+  box-sizing: border-box;
+}
+
+.modal-title {
+  font-size: 32rpx;
+  font-weight: 600;
+  text-align: center;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 16rpx;
+  margin-top: 8rpx;
+}
+
+.modal-btn {
+  flex: 1;
+}

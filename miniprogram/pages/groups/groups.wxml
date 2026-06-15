@@ -1,0 +1,58 @@
+<view wx:if="{{loading}}" class="empty">正在加载小组列表...</view>
+
+<view class="container" wx:else>
+  <view class="hero-card">
+    <view class="row-between">
+      <view>
+        <view class="hero-title">私人小组</view>
+        <view class="hero-subtitle">会员专属功能，创建私密空间与好友交流</view>
+      </view>
+    </view>
+  </view>
+
+  <view class="action-row">
+    <button class="btn-primary action-btn" bindtap="goCreate">创建小组</button>
+    <button class="btn-secondary action-btn" bindtap="openJoinModal">输入邀请码加入</button>
+  </view>
+
+  <view class="ocean-card" wx:if="{{groups.length}}">
+    <view class="section-title">我加入的小组（{{groups.length}}）</view>
+    <block wx:for="{{groups}}" wx:key="id">
+      <view class="group-item" data-id="{{item.id}}" bindtap="goDetail">
+        <view class="row-between">
+          <view class="group-info">
+            <view class="group-name">{{item.name}}</view>
+            <view class="group-theme">#{{item.theme}}</view>
+          </view>
+          <view class="group-stats">
+            <view class="muted">{{item.memberCount}} 人</view>
+            <view class="muted">{{item.postCount}} 帖</view>
+          </view>
+        </view>
+        <view class="group-desc muted" wx:if="{{item.description}}">{{item.description}}</view>
+        <view class="muted group-time">{{item.timeAgo}}</view>
+      </view>
+    </block>
+  </view>
+
+  <view class="empty" wx:else>
+    你还没有加入任何小组。创建小组或通过邀请码加入吧。
+  </view>
+</view>
+
+<view class="modal-mask" wx:if="{{showJoinModal}}" bindtap="closeJoinModal">
+  <view class="modal-content" catchtap="">
+    <view class="modal-title">输入邀请码加入小组</view>
+    <input
+      class="input mt-16 mb-16"
+      placeholder="请输入8位邀请码"
+      value="{{inviteCode}}"
+      bindinput="onInviteCodeInput"
+      maxlength="16"
+    />
+    <view class="modal-actions">
+      <button class="btn-secondary modal-btn" bindtap="closeJoinModal">取消</button>
+      <button class="btn-primary modal-btn" bindtap="submitJoin">加入</button>
+    </view>
+  </view>
+</view>

@@ -1,0 +1,6 @@
+.field-label {
+  font-size: 26rpx;
+  color: #0f5977;
+  font-weight: 600;
+  margin-bottom: 10rpx;
+}

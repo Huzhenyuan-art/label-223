@@ -1,0 +1,42 @@
+<view class="container">
+  <view class="hero-card">
+    <view class="hero-title">创建私人小组</view>
+    <view class="hero-subtitle">会员专属功能，创建私密交流空间</view>
+  </view>
+
+  <view class="ocean-card">
+    <view class="section-title">小组信息</view>
+
+    <view class="field-label">小组名称（2-40字）</view>
+    <input
+      class="input mb-16"
+      placeholder="给小组起个名字"
+      value="{{name}}"
+      data-key="name"
+      bindinput="bindField"
+      maxlength="40"
+    />
+
+    <view class="field-label">小组主题（2-40字）</view>
+    <input
+      class="input mb-16"
+      placeholder="例如：读书分享、创业交流"
+      value="{{theme}}"
+      data-key="theme"
+      bindinput="bindField"
+      maxlength="40"
+    />
+
+    <view class="field-label">小组介绍（可选，最多200字）</view>
+    <textarea
+      class="textarea mb-16"
+      placeholder="简单介绍一下这个小组..."
+      value="{{description}}"
+      data-key="description"
+      bindinput="bindField"
+      maxlength="200"
+    />
+  </view>
+
+  <button class="btn-primary" bindtap="submit" loading="{{submitting}}">创建小组</button>
+</view>

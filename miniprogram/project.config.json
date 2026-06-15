@@ -2,7 +2,7 @@
   "miniprogramRoot": "",
   "projectname": "echo-island",
   "description": "回声岛兴趣共鸣社交小程序",
-  "appid": "wx286a02ee4ef362da",
+  "appid": "touristappid",
   "setting": {
     "urlCheck": false,
     "es6": true,
@@ -43,6 +43,6 @@
     "tabIndent": "insertSpaces",
     "tabSize": 2
   },
-  "libVersion": "3.14.2",
+  "libVersion": "3.16.1",
   "condition": {}
 }

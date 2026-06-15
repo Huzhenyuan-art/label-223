@@ -5,6 +5,7 @@ const messageRoutes = require('./messageRoutes');
 const paymentRoutes = require('./paymentRoutes');
 const commerceRoutes = require('./commerceRoutes');
 const uploadRoutes = require('./uploadRoutes');
+const privateGroupRoutes = require('./privateGroupRoutes');
 
 module.exports = (app) => {
   app.use('/api/users', userRoutes);
@@ -14,4 +15,5 @@ module.exports = (app) => {
   app.use('/api/payments', paymentRoutes);
   app.use('/api/commerce', commerceRoutes);
   app.use('/api/upload', uploadRoutes);
+  app.use('/api/private-groups', privateGroupRoutes);
 };
