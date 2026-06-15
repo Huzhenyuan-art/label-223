@@ -1,5 +1,6 @@
 const { Message, User, RevealDecision, Post, Resonance } = require('../models');
 const logger = require('../utils/logger');
+const { sendToUser } = require('../websocket');
 
 const getRevealStatus = async (conversationId, userId, otherUserId) => {
   const [counts, decision] = await Promise.all([
@@ -293,6 +294,10 @@ exports.requestReveal = async (req, res) => {
     }
 
     const latest = await getRevealStatus(conversationId, userId, otherUserId);
+
+    const revealPayload = { type: 'reveal', data: { conversationId, ...latest } };
+    sendToUser(userId.toString(), revealPayload);
+    sendToUser(otherUserId.toString(), revealPayload);
 
     return res.json({
       code: 0,

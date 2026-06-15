@@ -1,5 +1,6 @@
 const request = require('../../utils/request');
 const config = require('../../config/index');
+const socket = require('../../utils/socket');
 const { ensureLogin, formatTimeAgo, showFriendlyError } = require('../../utils/util');
 
 Page({
@@ -9,11 +10,56 @@ Page({
     loading: false
   },
 
+  _socketHandlers: {},
+
   onShow() {
     if (!ensureLogin()) {
       return;
     }
     this.loadAll();
+    this._bindSocketEvents();
+  },
+
+  onHide() {
+    this._unbindSocketEvents();
+  },
+
+  onUnload() {
+    this._unbindSocketEvents();
+  },
+
+  _bindSocketEvents() {
+    const onMessage = (msg) => {
+      if (!msg) return;
+
+      this.setData({
+        unreadCount: this.data.unreadCount + 1
+      });
+
+      this.loadAll();
+    };
+
+    const onReadAck = () => {
+      this.loadAll();
+    };
+
+    const onReveal = () => {
+      this.loadAll();
+    };
+
+    this._socketHandlers = { onMessage, onReadAck, onReveal };
+
+    socket.on('message', onMessage);
+    socket.on('readAck', onReadAck);
+    socket.on('reveal', onReveal);
+  },
+
+  _unbindSocketEvents() {
+    const { onMessage, onReadAck, onReveal } = this._socketHandlers;
+    socket.off('message', onMessage);
+    socket.off('readAck', onReadAck);
+    socket.off('reveal', onReveal);
+    this._socketHandlers = {};
   },
 
   async loadAll() {

@@ -2,7 +2,7 @@
   <view class="ocean-card">
     <view class="row-between">
       <view class="chat-name">{{displayName}}</view>
-      <view class="chat-state">{{reveal && reveal.revealed ? '身份已揭示' : '动态标签对话中'}}</view>
+      <view class="chat-state">{{reveal && reveal.revealed ? '身份已揭示' : '动态标签对话中'}} {{!wsConnected ? '(连接中…)' : ''}}</view>
     </view>
 
     <view wx:if="{{reveal && !reveal.revealed}}" class="mt-12 muted">

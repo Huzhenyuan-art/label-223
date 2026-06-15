@@ -1,5 +1,6 @@
 const request = require('../../utils/request');
 const config = require('../../config/index');
+const socket = require('../../utils/socket');
 const { ensureLogin, formatTimeAgo, showFriendlyError } = require('../../utils/util');
 
 Page({
@@ -12,8 +13,12 @@ Page({
     content: '',
     list: [],
     loading: false,
-    scrollAnchor: ''
+    scrollAnchor: '',
+    wsConnected: false,
+    sending: false
   },
+
+  _socketHandlers: {},
 
   onLoad(options) {
     this.setData({
@@ -21,6 +26,8 @@ Page({
       otherUserId: options.otherUserId || '',
       displayName: options.revealed === '1' ? decodeURIComponent(options.name || '同频回声') : '同频回声'
     });
+
+    this._bindSocketEvents();
   },
 
   onShow() {
@@ -33,11 +40,87 @@ Page({
       return;
     }
     this.loadMessages();
+    this._updateWsState();
+  },
+
+  onHide() {
+    this._sendReadAck();
+  },
+
+  onUnload() {
+    this._unbindSocketEvents();
   },
 
   bindField(event) {
     const key = event.currentTarget.dataset.key;
     this.setData({ [key]: event.detail.value });
+  },
+
+  _bindSocketEvents() {
+    const onMessage = (msg) => {
+      if (!msg) return;
+
+      const msgConversationId = msg.conversationId || this.data.conversationId;
+
+      if (msgConversationId !== this.data.conversationId) return;
+
+      const userId = wx.getStorageSync('userId');
+      const formatted = {
+        ...msg,
+        timeAgo: formatTimeAgo(msg.createdAt),
+        mine: msg.sender?._id === userId || msg.sender?.toString() === userId,
+        sourcePostLabel: msg.sourcePost ? (msg.sourcePost.title || msg.sourcePost.dynamicTag) : ''
+      };
+
+      const list = this.data.list;
+      const exists = list.some((item) => item._id === msg._id || (item._id && item._id === msg._id));
+      if (exists) return;
+
+      this.setData({
+        list: [...list, formatted],
+        scrollAnchor: `msg-${msg._id}`
+      });
+
+      this._sendReadAck();
+    };
+
+    const onStateChange = () => {
+      this._updateWsState();
+    };
+
+    const onReveal = (data) => {
+      if (!data || data.conversationId !== this.data.conversationId) return;
+      this.setData({ reveal: data });
+      if (data.revealed) {
+        this.loadMessages();
+      }
+    };
+
+    this._socketHandlers = { onMessage, onStateChange, onReveal };
+
+    socket.on('message', onMessage);
+    socket.on('stateChange', onStateChange);
+    socket.on('reveal', onReveal);
+  },
+
+  _unbindSocketEvents() {
+    const { onMessage, onStateChange, onReveal } = this._socketHandlers;
+    socket.off('message', onMessage);
+    socket.off('stateChange', onStateChange);
+    socket.off('reveal', onReveal);
+    this._socketHandlers = {};
+  },
+
+  _updateWsState() {
+    this.setData({
+      wsConnected: socket.isConnected()
+    });
+  },
+
+  _sendReadAck() {
+    if (this.data.conversationId) {
+      socket.sendReadAck(this.data.conversationId);
+    }
   },
 
   async loadMessages() {
@@ -75,6 +158,8 @@ Page({
           // keep hidden name fallback
         }
       }
+
+      this._sendReadAck();
     } catch (error) {
       showFriendlyError(error, '对话加载失败，请稍后重试');
     } finally {
@@ -89,9 +174,25 @@ Page({
       return;
     }
 
+    if (this.data.sending) return;
+
     const senderDynamicTag = this.data.senderDynamicTag.startsWith('#') || this.data.senderDynamicTag.startsWith('＃')
       ? this.data.senderDynamicTag
       : `#${this.data.senderDynamicTag}`;
+
+    this.setData({ sending: true });
+
+    const wsSent = socket.sendMessage({
+      receiverId: this.data.otherUserId,
+      senderDynamicTag,
+      content
+    });
+
+    if (wsSent) {
+      this.setData({ content: '' });
+      this.setData({ sending: false });
+      return;
+    }
 
     try {
       await request.post(config.API.SEND_MESSAGE, {
@@ -103,6 +204,8 @@ Page({
       this.loadMessages();
     } catch (error) {
       showFriendlyError(error, '消息发送失败，请稍后重试');
+    } finally {
+      this.setData({ sending: false });
     }
   },
 

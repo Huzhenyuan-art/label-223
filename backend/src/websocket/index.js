@@ -1,5 +1,5 @@
 const WebSocket = require('ws');
-const { Message, User, Post, Resonance } = require('../models');
+const { Message, User, Post, Resonance, RevealDecision } = require('../models');
 const logger = require('../utils/logger');
 const config = require('../config');
 const { verifyToken } = require('../utils/auth');
@@ -111,6 +111,63 @@ const setupWebSocket = (server) => {
           const payload = { type: 'message', data: created };
           ws.send(JSON.stringify(payload));
           sendToUser(msg.receiverId, payload);
+
+          const newCount = existingCount + 1;
+          if (newCount >= 6) {
+            const [idA, idB] = conversationId.split('_');
+            const otherUserId = idA === authedUserId ? idB : idA;
+            const counts = await Message.aggregate([
+              { $match: { conversationId } },
+              { $group: { _id: '$sender', count: { $sum: 1 } } }
+            ]);
+            const countMap = new Map(counts.map((item) => [item._id.toString(), item.count]));
+            const myCount = countMap.get(authedUserId) || 0;
+            const otherCount = countMap.get(otherUserId) || 0;
+            if (myCount >= 3 && otherCount >= 3) {
+              const revealPayload = {
+                type: 'reveal',
+                data: {
+                  conversationId,
+                  eligible: true,
+                  myCount,
+                  otherCount,
+                  revealed: false
+                }
+              };
+              ws.send(JSON.stringify(revealPayload));
+              sendToUser(otherUserId, revealPayload);
+            }
+          }
+
+          return;
+        }
+
+        if (msg.type === 'read_ack') {
+          if (!authedUserId) {
+            ws.send(JSON.stringify({ type: 'error', message: 'Unauthorized websocket' }));
+            return;
+          }
+
+          if (!msg.conversationId) {
+            return;
+          }
+
+          const result = await Message.updateMany(
+            { conversationId: msg.conversationId, receiver: authedUserId, read: false },
+            { read: true }
+          );
+
+          const [idA, idB] = msg.conversationId.split('_');
+          const otherUserId = idA === authedUserId ? idB : idA;
+
+          sendToUser(otherUserId, {
+            type: 'read_ack',
+            data: {
+              conversationId: msg.conversationId,
+              readCount: result.modifiedCount
+            }
+          });
+
           return;
         }
 

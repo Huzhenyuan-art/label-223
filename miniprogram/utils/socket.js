@@ -1,72 +1,307 @@
 const config = require('../config/index');
 
+const STATE = {
+  DISCONNECTED: 'disconnected',
+  CONNECTING: 'connecting',
+  CONNECTED: 'connected',
+  RECONNECTING: 'reconnecting'
+};
+
+const RECONNECT_BASE_DELAY = 1000;
+const RECONNECT_MAX_DELAY = 30000;
+const HEARTBEAT_INTERVAL = 25000;
+const HEARTBEAT_TIMEOUT = 10000;
+
 let socketTask = null;
-let connected = false;
-let messageHandler = null;
+let state = STATE.DISCONNECTED;
+let authToken = null;
+let authed = false;
+
+let reconnectTimer = null;
+let reconnectAttempts = 0;
+let heartbeatTimer = null;
+let heartbeatTimeoutTimer = null;
+
+let pendingQueue = [];
+
+const listeners = {};
+
+const on = (event, handler) => {
+  if (!listeners[event]) {
+    listeners[event] = [];
+  }
+  listeners[event].push(handler);
+};
+
+const off = (event, handler) => {
+  if (!listeners[event]) {
+    return;
+  }
+  if (!handler) {
+    listeners[event] = [];
+    return;
+  }
+  listeners[event] = listeners[event].filter((fn) => fn !== handler);
+};
+
+const emit = (event, data) => {
+  const handlers = listeners[event];
+  if (!handlers || handlers.length === 0) {
+    return;
+  }
+  handlers.forEach((fn) => {
+    try {
+      fn(data);
+    } catch (e) {
+      console.error(`[socket] event handler error for "${event}":`, e);
+    }
+  });
+};
+
+const getState = () => state;
+const isConnected = () => state === STATE.CONNECTED && authed;
+
+const clearTimers = () => {
+  if (reconnectTimer) {
+    clearTimeout(reconnectTimer);
+    reconnectTimer = null;
+  }
+  if (heartbeatTimer) {
+    clearInterval(heartbeatTimer);
+    heartbeatTimer = null;
+  }
+  if (heartbeatTimeoutTimer) {
+    clearTimeout(heartbeatTimeoutTimer);
+    heartbeatTimeoutTimer = null;
+  }
+};
+
+const startHeartbeat = () => {
+  clearInterval(heartbeatTimer);
+  heartbeatTimer = setInterval(() => {
+    if (!socketTask || state !== STATE.CONNECTED) {
+      return;
+    }
+    sendRaw({ type: 'ping' });
+
+    clearTimeout(heartbeatTimeoutTimer);
+    heartbeatTimeoutTimer = setTimeout(() => {
+      console.warn('[socket] heartbeat timeout, closing connection');
+      if (socketTask) {
+        socketTask.close();
+      }
+    }, HEARTBEAT_TIMEOUT);
+  }, HEARTBEAT_INTERVAL);
+};
+
+const flushQueue = () => {
+  while (pendingQueue.length > 0) {
+    const item = pendingQueue.shift();
+    sendRaw(item);
+  }
+};
+
+const scheduleReconnect = () => {
+  if (state === STATE.DISCONNECTED) {
+    return;
+  }
+
+  state = STATE.RECONNECTING;
+  emit('stateChange', state);
+
+  const delay = Math.min(
+    RECONNECT_BASE_DELAY * Math.pow(2, reconnectAttempts),
+    RECONNECT_MAX_DELAY
+  );
+  const jitter = delay * (0.5 + Math.random() * 0.5);
+
+  console.log(`[socket] reconnect in ${Math.round(jitter)}ms (attempt ${reconnectAttempts + 1})`);
+
+  reconnectTimer = setTimeout(() => {
+    reconnectAttempts++;
+    connect(authToken);
+  }, jitter);
+};
+
+const sendRaw = (data) => {
+  if (!socketTask) {
+    return false;
+  }
+  try {
+    socketTask.send({ data: JSON.stringify(data) });
+    return true;
+  } catch (e) {
+    console.error('[socket] send error:', e);
+    return false;
+  }
+};
+
+const send = (data) => {
+  if (isConnected()) {
+    return sendRaw(data);
+  }
+  pendingQueue.push(data);
+  return false;
+};
 
 const connect = (token) => {
   if (!token) {
     return;
   }
 
+  authToken = token;
+
   if (socketTask) {
-    socketTask.close();
+    try {
+      socketTask.close();
+    } catch (e) {
+      // ignore
+    }
+    socketTask = null;
   }
 
+  clearTimers();
+
+  state = STATE.CONNECTING;
+  authed = false;
+  emit('stateChange', state);
+
   socketTask = wx.connectSocket({
-    url: config.WS_URL
-  });
-
-  socketTask.onOpen(() => {
-    connected = true;
-    send({ type: 'auth', token });
-  });
-
-  socketTask.onMessage((res) => {
-    try {
-      const data = JSON.parse(res.data);
-      if (data.type === 'message' && typeof messageHandler === 'function') {
-        messageHandler(data.data);
-      }
-    } catch (error) {
-      // keep silent for malformed message
+    url: config.WS_URL,
+    fail: (err) => {
+      console.error('[socket] connect fail:', err);
+      state = STATE.DISCONNECTED;
+      emit('stateChange', state);
+      scheduleReconnect();
     }
   });
 
-  socketTask.onClose(() => {
-    connected = false;
+  socketTask.onOpen(() => {
+    console.log('[socket] connection opened');
+    state = STATE.CONNECTED;
+    emit('stateChange', state);
+
+    sendRaw({ type: 'auth', token: authToken });
+    startHeartbeat();
   });
 
-  socketTask.onError(() => {
-    connected = false;
+  socketTask.onMessage((res) => {
+    let data;
+    try {
+      data = JSON.parse(res.data);
+    } catch (e) {
+      return;
+    }
+
+    switch (data.type) {
+      case 'auth':
+        if (data.success) {
+          authed = true;
+          reconnectAttempts = 0;
+          flushQueue();
+          console.log('[socket] auth success');
+          emit('auth', { success: true, userId: data.userId });
+        } else {
+          authed = false;
+          console.error('[socket] auth failed');
+          emit('auth', { success: false });
+          disconnect();
+        }
+        break;
+
+      case 'pong':
+        clearTimeout(heartbeatTimeoutTimer);
+        break;
+
+      case 'message':
+        clearTimeout(heartbeatTimeoutTimer);
+        emit('message', data.data);
+        break;
+
+      case 'reveal':
+        emit('reveal', data.data);
+        break;
+
+      case 'read_ack':
+        emit('readAck', data.data);
+        break;
+
+      case 'error':
+        console.error('[socket] server error:', data.message);
+        emit('error', data);
+        break;
+
+      default:
+        break;
+    }
   });
-};
 
-const send = (data) => {
-  if (!socketTask || !connected) {
-    return;
-  }
+  socketTask.onClose((res) => {
+    console.log('[socket] closed, code:', res.code);
+    state = STATE.DISCONNECTED;
+    authed = false;
+    emit('stateChange', state);
+    clearTimers();
 
-  socketTask.send({
-    data: JSON.stringify(data)
+    if (res.code !== 1000 && authToken) {
+      scheduleReconnect();
+    }
   });
-};
 
-const onMessage = (handler) => {
-  messageHandler = handler;
+  socketTask.onError((err) => {
+    console.error('[socket] error:', err);
+    state = STATE.DISCONNECTED;
+    authed = false;
+    emit('stateChange', state);
+  });
 };
 
 const disconnect = () => {
+  authToken = null;
+  clearTimers();
+  reconnectAttempts = 0;
+  pendingQueue = [];
+
   if (socketTask) {
-    socketTask.close();
+    try {
+      socketTask.close({ code: 1000, reason: 'client disconnect' });
+    } catch (e) {
+      // ignore
+    }
     socketTask = null;
   }
-  connected = false;
+
+  state = STATE.DISCONNECTED;
+  authed = false;
+  emit('stateChange', state);
+};
+
+const sendMessage = ({ receiverId, senderDynamicTag, content, postId }) => {
+  return send({
+    type: 'message',
+    receiverId,
+    senderDynamicTag,
+    content,
+    postId: postId || undefined
+  });
+};
+
+const sendReadAck = (conversationId) => {
+  return send({
+    type: 'read_ack',
+    conversationId
+  });
 };
 
 module.exports = {
+  STATE,
   connect,
+  disconnect,
   send,
-  onMessage,
-  disconnect
+  sendMessage,
+  sendReadAck,
+  on,
+  off,
+  getState,
+  isConnected
 };
