@@ -27,7 +27,7 @@ Page({
       return;
     }
     this.setData({ groupId });
-    this.loadGroupDetail();
+    this.reload();
   },
 
   onShow() {
