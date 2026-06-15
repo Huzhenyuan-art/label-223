@@ -247,7 +247,7 @@ Page({
       return;
     }
     wx.navigateTo({
-      url: `/pages/publish/publish?editId=${post._id}`
+      url: `/pages/edit/edit?editId=${post._id}`
     });
   },
 

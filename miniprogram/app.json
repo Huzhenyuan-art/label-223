@@ -5,6 +5,7 @@
     "pages/messages/messages",
     "pages/profile/profile",
     "pages/detail/detail",
+    "pages/edit/edit",
     "pages/chat/chat",
     "pages/member/member",
     "pages/publicProfile/publicProfile",

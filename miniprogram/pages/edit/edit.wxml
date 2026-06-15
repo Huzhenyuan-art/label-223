@@ -1,0 +1,30 @@
+<view wx:if="{{loading}}" class="empty">正在加载...</view>
+
+<view class="container" wx:else>
+  <view class="hero-card">
+    <view class="hero-title">{{pageTitle}}</view>
+    <view class="hero-subtitle">{{pageSubtitle}}</view>
+  </view>
+
+  <view class="ocean-card">
+    <view class="section-title">动态标签</view>
+    <view class="wrap mb-16">
+      <block wx:for="{{presets}}" wx:key="*this">
+        <view class="tag-chip {{dynamicTag === item ? 'active' : ''}}" data-tag="{{item}}" bindtap="usePresetTag">{{item}}</view>
+      </block>
+    </view>
+    <input class="input" placeholder="输入你的动态标签" value="{{dynamicTag}}" data-key="dynamicTag" bindinput="bindField" />
+  </view>
+
+  <view class="ocean-card">
+    <view class="section-title">内容编辑器</view>
+    <input class="input mb-16" placeholder="标题（可选）" value="{{title}}" data-key="title" bindinput="bindField" />
+    <textarea class="textarea mb-16" placeholder="写下你的频率内容" value="{{contentText}}" data-key="contentText" bindinput="bindField" />
+    <input class="input mb-16" placeholder="标签：多个请用逗号分隔" value="{{tagsInput}}" data-key="tagsInput" bindinput="bindField" />
+    <input class="input mb-16" placeholder="音频链接（可选）" value="{{audioUrl}}" data-key="audioUrl" bindinput="bindField" />
+    <input class="input mb-16" placeholder="外部链接（可选）" value="{{linkUrl}}" data-key="linkUrl" bindinput="bindField" />
+    <input class="input" placeholder="封面图片链接（可选）" value="{{coverImage}}" data-key="coverImage" bindinput="bindField" />
+  </view>
+
+  <button class="btn-primary" bindtap="submitPost" loading="{{submitting}}">{{submitText}}</button>
+</view>
