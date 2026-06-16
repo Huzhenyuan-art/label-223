@@ -52,7 +52,15 @@ const config = {
     PRIVATE_GROUPS_MY: '/api/private-groups/me',
     PRIVATE_GROUPS_CREATE: '/api/private-groups',
     PRIVATE_GROUPS_JOIN: '/api/private-groups/join',
-    PRIVATE_GROUPS_SEARCH_USERS: '/api/private-groups/search-users'
+    PRIVATE_GROUPS_SEARCH_USERS: '/api/private-groups/search-users',
+
+    AUDIT_SENSITIVE_WORDS_INIT: '/api/audit/sensitive-words/init',
+    AUDIT_SENSITIVE_WORDS: '/api/audit/sensitive-words',
+    AUDIT_SENSITIVE_WORDS_BATCH: '/api/audit/sensitive-words/batch',
+    AUDIT_SENSITIVE_WORDS_PREFIX: '/api/audit/sensitive-words',
+    AUDIT_LOGS: '/api/audit/logs',
+    AUDIT_STATS: '/api/audit/stats',
+    AUDIT_CACHE_REFRESH: '/api/audit/cache/refresh'
   }
 };
 

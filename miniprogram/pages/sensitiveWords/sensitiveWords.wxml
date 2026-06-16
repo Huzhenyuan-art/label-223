@@ -1,0 +1,226 @@
+<view class="container" wx:if="{{isLoggedIn}}">
+  <view class="tab-bar">
+    <view
+      class="tab-item {{activeTab === 'list' ? 'tab-active' : ''}}"
+      data-tab="list"
+      bindtap="switchTab"
+    >
+      词库列表
+    </view>
+    <view
+      class="tab-item {{activeTab === 'single' ? 'tab-active' : ''}}"
+      data-tab="single"
+      bindtap="switchTab"
+    >
+      单个添加
+    </view>
+    <view
+      class="tab-item {{activeTab === 'batch' ? 'tab-active' : ''}}"
+      data-tab="batch"
+      bindtap="switchTab"
+    >
+      批量导入
+    </view>
+  </view>
+
+  <view wx:if="{{activeTab === 'list'}}">
+    <view class="ocean-card">
+      <view class="filter-row">
+        <input
+          class="input filter-input"
+          placeholder="搜索敏感词"
+          value="{{keyword}}"
+          bindinput="bindKeywordInput"
+          bindconfirm="retryLoad"
+          confirm-type="search"
+        />
+        <picker
+          mode="selector"
+          range="{{filterCategoryList}}"
+          value="{{filterCategoryIndex}}"
+          bindchange="bindFilterCategoryChange"
+        >
+          <view class="filter-picker">
+            {{filterCategoryList[filterCategoryIndex]}}
+          </view>
+        </picker>
+      </view>
+      <view class="filter-row mt-12">
+        <view class="filter-tag {{filterEnabled === '' ? 'active' : ''}}" data-value="all" bindtap="bindEnabledChange">全部</view>
+        <view class="filter-tag {{filterEnabled === 'true' ? 'active' : ''}}" data-value="true" bindtap="bindEnabledChange">已启用</view>
+        <view class="filter-tag {{filterEnabled === 'false' ? 'active' : ''}}" data-value="false" bindtap="bindEnabledChange">已禁用</view>
+        <view class="flex-spacer"></view>
+        <view class="action-link" bindtap="initDefaults">初始化</view>
+        <view class="action-link ml-16" bindtap="refreshCache">刷新缓存</view>
+      </view>
+    </view>
+
+    <view class="ocean-card" wx:if="{{list.length > 0}}">
+      <view class="section-title">敏感词列表（共{{pagination.total}}个）</view>
+      <block wx:for="{{list}}" wx:key="_id">
+        <view class="word-item">
+          <view class="row-between">
+            <view class="word-text">{{item.word}}</view>
+            <view class="word-level level-{{item.level}}">L{{item.level}}</view>
+          </view>
+          <view class="row-between mt-8">
+            <view class="muted word-meta">
+              <text class="category-tag">{{item.categoryText}}</text>
+              <text class="dot">·</text>
+              <text>{{item.createdAtText}}</text>
+            </view>
+            <view class="word-actions">
+              <view
+                class="action-btn {{item.enabled ? '' : 'disabled-btn'}}"
+                data-id="{{item._id}}"
+                bindtap="toggleWord"
+              >
+                {{item.enabled ? '禁用' : '启用'}}
+              </view>
+              <view
+                class="action-btn delete-btn"
+                data-id="{{item._id}}"
+                bindtap="deleteWord"
+              >
+                删除
+              </view>
+            </view>
+          </view>
+        </view>
+      </block>
+      <view wx:if="{{loading}}" class="muted mt-16 text-center">加载中...</view>
+      <view wx:if="{{!loading && !hasMore && list.length > 0}}" class="muted mt-16 text-center">没有更多了</view>
+    </view>
+
+    <view class="ocean-card" wx:elif="{{!loading && loadFailed}}">
+      <view class="empty">
+        <view>加载失败</view>
+        <button class="btn-secondary mt-20" bindtap="retryLoad">重试</button>
+      </view>
+    </view>
+
+    <view wx:elif="{{!loading}}" class="empty">暂无敏感词，可通过单个添加或批量导入添加</view>
+  </view>
+
+  <view wx:if="{{activeTab === 'single'}}">
+    <view class="ocean-card">
+      <view class="section-title">添加单个敏感词</view>
+      <view class="form-item">
+        <view class="form-label">敏感词</view>
+        <input
+          class="input"
+          placeholder="请输入敏感词"
+          value="{{addWord}}"
+          bindinput="bindAddWordInput"
+        />
+      </view>
+      <view class="form-item">
+        <view class="form-label">分类</view>
+        <picker
+          mode="selector"
+          range="{{addCategoryList}}"
+          value="{{addCategoryIndex}}"
+          bindchange="bindAddCategoryChange"
+        >
+          <view class="picker-view">
+            {{addCategoryList[addCategoryIndex]}}
+            <text class="picker-arrow">▼</text>
+          </view>
+        </picker>
+      </view>
+      <view class="form-item">
+        <view class="form-label">风险等级</view>
+        <picker
+          mode="selector"
+          range="{{addLevelList}}"
+          value="{{addLevelIndex}}"
+          bindchange="bindAddLevelChange"
+        >
+          <view class="picker-view">
+            {{addLevelList[addLevelIndex]}}
+            <text class="picker-arrow">▼</text>
+          </view>
+        </picker>
+      </view>
+      <button class="btn-primary mt-20" bindtap="addSingleWord" loading="{{addingWord}}">添加</button>
+    </view>
+
+    <view class="ocean-card">
+      <view class="section-title">说明</view>
+      <view class="muted">
+        <view>• 低风险（L1）：自动打码显示，不拦截发布</view>
+        <view>• 中风险（L2）：自动打码显示，不拦截发布</view>
+        <view>• 高风险（L3）：直接拦截，禁止发布</view>
+      </view>
+    </view>
+  </view>
+
+  <view wx:if="{{activeTab === 'batch'}}">
+    <view class="ocean-card">
+      <view class="section-title">批量导入敏感词</view>
+      <view class="form-item">
+        <view class="form-label">默认分类</view>
+        <picker
+          mode="selector"
+          range="{{batchCategoryList}}"
+          value="{{batchCategoryIndex}}"
+          bindchange="bindBatchCategoryChange"
+        >
+          <view class="picker-view">
+            {{batchCategoryList[batchCategoryIndex]}}
+            <text class="picker-arrow">▼</text>
+          </view>
+        </picker>
+      </view>
+      <view class="form-item">
+        <view class="form-label">默认风险等级</view>
+        <picker
+          mode="selector"
+          range="{{batchLevelList}}"
+          value="{{batchLevelIndex}}"
+          bindchange="bindBatchLevelChange"
+        >
+          <view class="picker-view">
+            {{batchLevelList[batchLevelIndex]}}
+            <text class="picker-arrow">▼</text>
+          </view>
+        </picker>
+      </view>
+      <view class="form-item">
+        <view class="form-label">敏感词列表</view>
+        <textarea
+          class="textarea"
+          placeholder="每行一个词，格式：&#10;敏感词1&#10;敏感词2 分类 等级&#10;敏感词3 advertising 1&#10;也支持逗号、分号分隔"
+          value="{{batchText}}"
+          bindinput="bindBatchTextInput"
+          placeholder-class="textarea-placeholder"
+          auto-height
+        />
+      </view>
+      <button class="btn-primary mt-20" bindtap="batchImport" loading="{{batchImporting}}">批量导入</button>
+    </view>
+
+    <view class="ocean-card">
+      <view class="section-title">格式说明</view>
+      <view class="muted">
+        <view>• 每行一个敏感词，支持换行、逗号、分号分隔</view>
+        <view>• 简单格式：直接写敏感词，使用默认分类和等级</view>
+        <view>• 完整格式：敏感词 分类 等级（用空格分隔）</view>
+        <view>• 分类可选：politics/violence/pornography/advertising/insult/other</view>
+        <view>• 等级可选：1（低）、2（中）、3（高）</view>
+      </view>
+    </view>
+  </view>
+</view>
+
+<view class="container" wx:elif="{{!isLoggedIn}}">
+  <view class="hero-card">
+    <view class="hero-title">敏感词管理</view>
+    <view class="hero-subtitle">登录后可管理敏感词库和查看审核记录。</view>
+  </view>
+  <view class="ocean-card login-state-card">
+    <view class="section-title">请先登录</view>
+    <view class="muted">登录后才能访问敏感词管理功能。</view>
+    <button class="btn-primary mt-20" bindtap="goLogin">登录 / 注册</button>
+  </view>
+</view>

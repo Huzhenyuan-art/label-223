@@ -14,7 +14,9 @@
     "pages/groups/groups",
     "pages/groupCreate/groupCreate",
     "pages/groupDetail/groupDetail",
-    "pages/groupMembers/groupMembers"
+    "pages/groupMembers/groupMembers",
+    "pages/sensitiveWords/sensitiveWords",
+    "pages/auditLogs/auditLogs"
   ],
   "window": {
     "backgroundTextStyle": "dark",

@@ -87,7 +87,6 @@
         <button class="btn-secondary action-grid-btn" bindtap="goMemberPage">会员中心</button>
       </view>
     </view>
-
     <block wx:if="{{favoritesByTag.length}}">
       <block wx:for="{{favoritesByTag}}" wx:key="tag">
         <view class="favorite-group">
@@ -118,6 +117,21 @@
       </block>
     </block>
     <view wx:else class="muted">你还没有发射频率。</view>
+  </view>
+
+  <view class="ocean-card">
+    <view class="section-title">内容审核管理</view>
+    <view class="actions-grid">
+      <view class="action-cell">
+        <button class="btn-secondary action-grid-btn" bindtap="goAuditLogs">审核情况</button>
+      </view>
+      <view class="action-cell">
+        <button class="btn-secondary action-grid-btn" bindtap="goSensitiveWords">敏感词管理</button>
+      </view>
+      <view class="action-cell">
+        <view class="action-grid-placeholder"></view>
+      </view>
+    </view>
   </view>
 
   <button class="btn-secondary" bindtap="logout">退出登录</button>

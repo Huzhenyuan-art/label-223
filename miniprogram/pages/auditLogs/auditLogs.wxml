@@ -1,0 +1,178 @@
+<view class="container" wx:if="{{isLoggedIn}}">
+  <view class="tab-bar">
+    <view
+      class="tab-item {{activeTab === 'stats' ? 'tab-active' : ''}}"
+      data-tab="stats"
+      bindtap="switchTab"
+    >
+      数据统计
+    </view>
+    <view
+      class="tab-item {{activeTab === 'logs' ? 'tab-active' : ''}}"
+      data-tab="logs"
+      bindtap="switchTab"
+    >
+      审核记录
+    </view>
+  </view>
+
+  <view wx:if="{{activeTab === 'stats'}}">
+    <view class="ocean-card" wx:if="{{stats}}">
+      <view class="section-title">审核概览（{{stats.periodDays}}天）</view>
+      <view class="stat-grid">
+        <view class="stat-item">
+          <view class="stat-value">{{stats.overview.total}}</view>
+          <view class="muted">总审核数</view>
+        </view>
+        <view class="stat-item stat-warning">
+          <view class="stat-value">{{stats.overview.blocked}}</view>
+          <view class="muted">已拦截</view>
+        </view>
+        <view class="stat-item stat-caution">
+          <view class="stat-value">{{stats.overview.masked}}</view>
+          <view class="muted">已打码</view>
+        </view>
+        <view class="stat-item stat-success">
+          <view class="stat-value">{{stats.overview.passed}}</view>
+          <view class="muted">已通过</view>
+        </view>
+      </view>
+      <view class="block-rate mt-16">
+        <view class="muted">拦截率</view>
+        <view class="block-rate-bar">
+          <view class="block-rate-fill" style="width: {{stats.overview.blockRate}}%"></view>
+        </view>
+        <view class="block-rate-text">{{stats.overview.blockRate}}%</view>
+      </view>
+    </view>
+
+    <view class="ocean-card" wx:if="{{stats}}">
+      <view class="section-title">时间范围</view>
+      <view class="days-tabs">
+        <block wx:for="{{daysList}}" wx:key="*this" wx:for-index="idx">
+          <view
+            class="day-tab {{daysIndex === idx ? 'active' : ''}}"
+            data-index="{{idx}}"
+            bindtap="changeDays"
+          >
+            {{item}}
+          </view>
+        </block>
+      </view>
+    </view>
+
+    <view class="ocean-card" wx:if="{{stats && stats.daily && stats.daily.length > 0}}">
+      <view class="section-title">每日趋势</view>
+      <view class="chart-container">
+        <block wx:for="{{stats.daily}}" wx:key="date">
+          <view class="chart-bar-item">
+            <view class="chart-bar-wrap">
+              <view
+                class="chart-bar chart-bar-blocked"
+                style="height: {{item.blocked > 0 ? (item.blocked / (stats.overview.total / 10) * 100) : 0}}%"
+              ></view>
+              <view
+                class="chart-bar chart-bar-masked"
+                style="height: {{item.masked > 0 ? (item.masked / (stats.overview.total / 10) * 100) : 0}}%"
+              ></view>
+            </view>
+            <view class="chart-label">{{item.date}}</view>
+          </view>
+        </block>
+      </view>
+      <view class="chart-legend mt-16">
+        <view class="legend-item">
+          <view class="legend-dot legend-blocked"></view>
+          <text class="muted">拦截</text>
+        </view>
+        <view class="legend-item">
+          <view class="legend-dot legend-masked"></view>
+          <text class="muted">打码</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="ocean-card" wx:if="{{byTypeList.length > 0}}">
+      <view class="section-title">按内容类型</view>
+      <block wx:for="{{byTypeList}}" wx:key="key">
+        <view class="type-row">
+          <view class="type-label">{{item.label}}</view>
+          <view class="type-count">{{item.count}}</view>
+        </view>
+      </block>
+    </view>
+
+    <view wx:if="{{statsLoading && !stats}}" class="empty">加载中...</view>
+    <view wx:if="{{!statsLoading && !stats}}" class="empty">暂无统计数据</view>
+  </view>
+
+  <view wx:if="{{activeTab === 'logs'}}">
+    <view class="ocean-card">
+      <view class="filter-row">
+        <picker
+          mode="selector"
+          range="{{typeList}}"
+          value="{{typeIndex}}"
+          bindchange="bindTypeChange"
+        >
+          <view class="filter-picker">
+            {{typeList[typeIndex]}}
+          </view>
+        </picker>
+        <picker
+          mode="selector"
+          range="{{actionList}}"
+          value="{{actionIndex}}"
+          bindchange="bindActionChange"
+        >
+          <view class="filter-picker ml-16">
+            {{actionList[actionIndex]}}
+          </view>
+        </picker>
+      </view>
+    </view>
+
+    <view class="ocean-card" wx:if="{{list.length > 0}}">
+      <view class="section-title">审核记录（共{{pagination.total}}条）</view>
+      <block wx:for="{{list}}" wx:key="_id">
+        <view class="log-item" data-id="{{item._id}}" bindtap="viewDetail">
+          <view class="row-between">
+            <view class="log-type">{{item.typeText}}</view>
+            <view class="log-action action-{{item.action}}">{{item.actionText}}</view>
+          </view>
+          <view class="log-content mt-8">{{item.content}}</view>
+          <view class="row-between mt-8" wx:if="{{item.matchedWordsPreview}}">
+            <view class="muted log-meta">命中：{{item.matchedWordsPreview}}{{item.matchedWords.length > 3 ? '...' : ''}}</view>
+          </view>
+          <view class="row-between mt-8">
+            <view class="muted log-time">{{item.createdAtText}}</view>
+            <view class="log-detail-btn">查看详情</view>
+          </view>
+        </view>
+      </block>
+      <view wx:if="{{listLoading}}" class="muted mt-16 text-center">加载中...</view>
+      <view wx:if="{{!listLoading && !hasMore && list.length > 0}}" class="muted mt-16 text-center">没有更多了</view>
+    </view>
+
+    <view class="ocean-card" wx:elif="{{!listLoading && listLoadFailed}}">
+      <view class="empty">
+        <view>加载失败</view>
+        <button class="btn-secondary mt-20" bindtap="retryLoad">重试</button>
+      </view>
+    </view>
+
+    <view wx:elif="{{!listLoading}}" class="empty">暂无审核记录</view>
+  </view>
+</view>
+
+<view class="container" wx:elif="{{!isLoggedIn}}">
+  <view class="hero-card">
+    <view class="hero-title">审核情况</view>
+    <view class="hero-subtitle">登录后可查看内容审核统计和审核记录。</view>
+  </view>
+  <view class="ocean-card login-state-card">
+    <view class="section-title">请先登录</view>
+    <view class="muted">登录后才能查看审核情况数据。</view>
+    <button class="btn-primary mt-20" bindtap="goLogin">登录 / 注册</button>
+  </view>
+</view>

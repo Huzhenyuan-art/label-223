@@ -619,3 +619,433 @@ try {
 - **与 pushUnread 的区别**：pushUnread 是 async 函数，返回 Promise，所以 pushUnread(...).catch(...) 是正确的用法
 - **try-catch 保护**：对于同步函数可能抛出的异常，应使用 try-catch 而非 .catch()。即使同步函数本身不抛异常，使用 try-catch 也是更安全的防御性编程
 - **条件分支导致偶发性**：此 bug 只在特定条件（对他人原频发起合鸣）下触发，在自己帖子上操作不会触发，容易误判为"有时正常有时不正常"
+---
+
+## 问题：缺少审核情况查看入口与敏感词管理入口
+
+### 现象描述
+用户反馈个人中心（岛屿空间）缺少两个关键功能入口：
+1. 无法查看内容审核情况（审核记录、统计数据等）
+2. 无法管理敏感词库（单个添加、批量导入、编辑删除等）
+
+尽管后端已实现完整的内容审核模块（敏感词过滤、命中拦截、审核记录），但前端没有对应的用户操作入口，导致管理员无法便捷地使用这些功能。
+
+### 根因分析
+前端小程序页面体系中，缺少两个独立的功能页面，且个人中心未提供导航入口：
+- 缺少「审核情况」页面，用于展示审核统计数据和审核记录列表
+- 缺少「敏感词管理」页面，用于管理敏感词库（增删改查、批量导入）
+- 个人中心（profile 页）没有对应入口按钮，用户无法找到这些功能
+
+### 修复方案
+
+#### 一、后端审核模块（已存在）
+
+后端已实现完整的内容审核模块，以下功能均可用：
+
+| 模块 | 文件 | 功能说明 |
+|------|------|---------|
+| 敏感词模型 | ackend/src/models/SensitiveWord.js | 敏感词数据模型，含分类、等级、启用状态 |
+| 审核记录模型 | ackend/src/models/AuditLog.js | 审核记录模型，30天TTL自动过期 |
+| 审核服务 | ackend/src/services/auditService.js | DFA算法敏感词匹配、分级审核策略 |
+| 审核控制器 | ackend/src/controllers/auditController.js | 8个API接口的业务逻辑 |
+| 审核路由 | ackend/src/routes/auditRoutes.js | RESTful API路由（挂载于 /api/audit） |
+
+**核心审核策略**：
+- **Level 3（高风险）**：直接拦截，不允许发布（action: blocked）
+- **Level 1-2（中低风险）**：自动打码屏蔽，允许发布（action: masked）
+- **无命中**：直接通过（action: passed）
+
+**已接入审核的入口**：
+- 发帖（createPost / updatePost）
+- 超级回声（createSuperEcho）
+- 评论与回复（createComment / createCommentReply）
+- 私信发送（HTTP sendMessage + WebSocket 消息）
+
+---
+
+#### 二、前端新增：审核情况页面（auditLogs）
+
+创建独立的审核情况页面，提供数据统计和记录查询功能。
+
+**页面路径**：miniprogram/pages/auditLogs/
+
+**包含文件**：
+- uditLogs.js - 页面逻辑
+- uditLogs.wxml - 页面结构
+- uditLogs.wxss - 页面样式
+- uditLogs.json - 页面配置
+
+**功能特性**：
+
+**Tab 1：数据统计**
+- 概览卡片：总审核数、已拦截、已打码、已通过
+- 拦截率进度条可视化
+- 时间范围切换：近 7 天 / 近 30 天 / 近 90 天
+- 每日趋势柱状图（拦截 + 打码堆叠）
+- 按内容类型统计列表（帖子、评论、消息等）
+
+**Tab 2：审核记录**
+- 类型筛选：全部 / 帖子 / 超级回声 / 评论 / 评论回复 / 私信
+- 处理结果筛选：全部 / 已拦截 / 已打码 / 已通过
+- 记录列表：展示内容类型、处理结果、内容摘要、命中敏感词预览、时间
+- 详情弹窗：点击记录查看完整内容和命中详情
+- 分页加载：上拉加载更多
+
+---
+
+#### 三、前端新增：敏感词管理页面（sensitiveWords）
+
+创建独立的敏感词管理页面，支持词库维护。
+
+**页面路径**：miniprogram/pages/sensitiveWords/
+
+**包含文件**：
+- sensitiveWords.js - 页面逻辑
+- sensitiveWords.wxml - 页面结构
+- sensitiveWords.wxss - 页面样式
+- sensitiveWords.json - 页面配置
+
+**功能特性**：
+
+**Tab 1：词库列表**
+- 搜索：按关键词模糊搜索敏感词
+- 分类筛选：全部分类 / 政治敏感 / 暴力恐怖 / 色情低俗 / 广告推广 / 辱骂攻击 / 其他
+- 状态筛选：全部 / 已启用 / 已禁用
+- 列表项：敏感词文本、等级标签（L1/L2/L3，颜色区分）、分类标签、创建时间
+- 操作：启用/禁用切换、删除
+- 分页加载
+
+**Tab 2：单个添加**
+- 敏感词输入框
+- 分类选择器（Picker）
+- 风险等级选择器（Picker，1-3级）
+- 添加按钮
+
+**Tab 3：批量导入**
+- 默认分类选择器
+- 默认等级选择器
+- 多行文本输入框（每行一个敏感词）
+- 格式说明提示
+- 批量导入按钮
+
+**额外操作**：
+- 初始化默认词库（一键添加 8 个预设敏感词）
+- 刷新缓存（手动触发内存缓存刷新）
+
+---
+
+#### 四、前端入口：个人中心添加导航
+
+在个人中心（岛屿空间）页面添加「内容审核管理」卡片，包含两个入口按钮。
+
+**修改文件**：
+- miniprogram/pages/profile/profile.wxml - 添加入口卡片
+- miniprogram/pages/profile/profile.js - 添加跳转方法
+- miniprogram/pages/profile/profile.wxss - 补充占位符样式
+- miniprogram/app.json - 注册新页面到 pages 数组
+
+**入口位置**：
+位于「我的频率」卡片下方、「退出登录」按钮上方，独立的 ocean-card 卡片，标题为「内容审核管理」，包含两个按钮：
+- 审核情况  跳转到 auditLogs 页面
+- 敏感词管理  跳转到 sensitiveWords 页面
+
+**设计规范**：
+- 沿用项目海洋风格UI（ocean-card、btn-secondary 等样式类）
+- 三列 actions-grid 布局（与收藏夹模块一致）
+- 第三列为占位，保持布局整齐
+
+---
+
+#### 五、API 配置
+
+在前端配置文件中添加审核相关 API 路径：
+
+**文件**：miniprogram/config/index.js
+
+`javascript
+AUDIT_SENSITIVE_WORDS_INIT: '/api/audit/sensitive-words/init',
+AUDIT_SENSITIVE_WORDS: '/api/audit/sensitive-words',
+AUDIT_SENSITIVE_WORDS_BATCH: '/api/audit/sensitive-words/batch',
+AUDIT_SENSITIVE_WORDS_PREFIX: '/api/audit/sensitive-words',
+AUDIT_LOGS: '/api/audit/logs',
+AUDIT_STATS: '/api/audit/stats',
+AUDIT_CACHE_REFRESH: '/api/audit/cache/refresh',
+`
+
+---
+
+### 涉及文件清单
+
+| 类型 | 文件路径 | 改动说明 |
+|------|---------|---------|
+| 后端（已有）| ackend/src/models/SensitiveWord.js | 敏感词数据模型 |
+| 后端（已有）| ackend/src/models/AuditLog.js | 审核记录模型 |
+| 后端（已有）| ackend/src/services/auditService.js | DFA审核服务 |
+| 后端（已有）| ackend/src/controllers/auditController.js | 审核控制器 |
+| 后端（已有）| ackend/src/routes/auditRoutes.js | 审核路由 |
+| 新增页面 | miniprogram/pages/auditLogs/auditLogs.js | 审核情况页面逻辑 |
+| 新增页面 | miniprogram/pages/auditLogs/auditLogs.wxml | 审核情况页面结构 |
+| 新增页面 | miniprogram/pages/auditLogs/auditLogs.wxss | 审核情况页面样式 |
+| 新增页面 | miniprogram/pages/auditLogs/auditLogs.json | 审核情况页面配置 |
+| 新增页面 | miniprogram/pages/sensitiveWords/sensitiveWords.js | 敏感词管理页面逻辑 |
+| 新增页面 | miniprogram/pages/sensitiveWords/sensitiveWords.wxml | 敏感词管理页面结构 |
+| 新增页面 | miniprogram/pages/sensitiveWords/sensitiveWords.wxss | 敏感词管理页面样式 |
+| 新增页面 | miniprogram/pages/sensitiveWords/sensitiveWords.json | 敏感词管理页面配置 |
+| 修改 | miniprogram/app.json | 注册两个新页面到 pages 数组 |
+| 修改 | miniprogram/config/index.js | 添加审核相关 API 配置 |
+| 修改 | miniprogram/pages/profile/profile.wxml | 添加「内容审核管理」入口卡片 |
+| 修改 | miniprogram/pages/profile/profile.js | 添加 goAuditLogs / goSensitiveWords 跳转方法 |
+| 修改 | miniprogram/pages/profile/profile.wxss | 补充 action-grid-placeholder 样式 |
+
+---
+
+### 使用说明
+
+#### 1. 首次使用：初始化默认词库
+1. 进入「我的」Tab  找到「内容审核管理」卡片
+2. 点击「敏感词管理」进入
+3. 切换到「单个添加」Tab，点击底部「初始化默认词库」按钮
+4. 系统会自动添加 8 个预设的各类别敏感词（用于测试）
+5. 也可以点击「刷新缓存」手动刷新内存缓存
+
+#### 2. 单个添加敏感词
+1. 在敏感词管理页切换到「单个添加」Tab
+2. 输入敏感词文本
+3. 选择分类（政治敏感/暴力恐怖/色情低俗/广告推广/辱骂攻击/其他）
+4. 选择风险等级（1-3 级，3 级最高会直接拦截）
+5. 点击「添加敏感词」按钮
+
+#### 3. 批量导入敏感词
+1. 在敏感词管理页切换到「批量导入」Tab
+2. 选择默认分类和默认等级（所有导入的词都会使用这些设置）
+3. 在文本框中输入敏感词，**每行一个**
+4. 点击「批量导入」按钮
+
+#### 4. 查看审核情况
+1. 在个人中心点击「审核情况」进入
+2. 「数据统计」Tab：查看总览数据、每日趋势图、按类型统计
+3. 切换时间范围（7天/30天/90天）查看不同时段数据
+4. 「审核记录」Tab：查看具体的审核记录
+5. 使用顶部筛选器按类型或处理结果过滤
+6. 点击某条记录可查看详情（完整内容、命中的敏感词等）
+
+#### 5. 管理敏感词
+1. 在敏感词管理页的「词库列表」Tab
+2. 使用搜索框和筛选器查找特定敏感词
+3. 点击「启用/禁用」按钮切换敏感词状态
+4. 点击「删除」按钮移除敏感词
+
+---
+
+### 技术要点
+
+#### DFA 算法
+- 使用确定有限自动机（DFA）实现高效敏感词匹配
+- 时间复杂度 O(n)，n 为文本长度
+- 支持海量敏感词库，匹配效率不受词库大小影响
+- 敏感词存储在 MongoDB 中，启动时加载到内存构建 DFA 树
+
+#### 分级审核策略
+- Level 3（高风险）：直接拦截，返回错误，不允许发布
+- Level 1-2（中低风险）：自动打码（用 * 替换敏感字符），允许发布
+- 无命中：直接通过
+
+#### 缓存机制
+- 敏感词 DFA 树缓存在内存中
+- 缓存有效期 60 秒，过期后自动从数据库重新加载
+- 支持手动刷新缓存（/api/audit/cache/refresh）
+- 添加/删除/修改敏感词后建议手动刷新缓存
+
+#### TTL 索引
+- 审核记录使用 MongoDB TTL 索引
+- 记录保留 30 天，过期自动删除
+- 减少数据库存储压力
+
+#### 小程序 Picker 组件注意事项
+- 微信小程序的 picker 组件不支持在 wxml 中直接使用 JavaScript 方法（如 indIndex）
+- 必须在 js 中维护当前选中项的索引值（index）
+- wxml 中通过 {{array[index]}} 的方式显示选中项
+- 这是小程序开发的常见坑，需要特别注意
+
+#### UI/UX 设计规范
+- 所有新增页面严格遵循项目海洋风格设计
+- 统一使用 ocean-card、tn-primary、tn-secondary、	ag-chip 等样式类
+- Tab 切换使用 pill 风格的切换器
+- 保持与现有页面一致的间距、圆角、配色
+- 支持暗色主题（深海蓝背景 + 浅色文字）
+
+---
+
+## 闂锛氱己灏戝鏍告儏鍐垫煡鐪嬪叆鍙ｄ笌鏁忔劅璇嶇鐞嗗叆鍙?
+### 鐜拌薄鎻忚堪
+鐢ㄦ埛鍙嶉涓汉涓績锛堝矝灞跨┖闂达級缂哄皯涓や釜鍏抽敭鍔熻兘鍏ュ彛锛?1. 鏃犳硶鏌ョ湅鍐呭瀹℃牳鎯呭喌锛堝鏍歌褰曘€佺粺璁℃暟鎹瓑锛?2. 鏃犳硶绠＄悊鏁忔劅璇嶅簱锛堝崟涓坊鍔犮€佹壒閲忓鍏ャ€佺紪杈戝垹闄ょ瓑锛?
+灏界鍚庣宸插疄鐜板畬鏁寸殑鍐呭瀹℃牳妯″潡锛堟晱鎰熻瘝杩囨护銆佸懡涓嫤鎴€佸鏍歌褰曪級锛屼絾鍓嶇娌℃湁瀵瑰簲鐨勭敤鎴锋搷浣滃叆鍙ｏ紝瀵艰嚧绠＄悊鍛樻棤娉曚究鎹峰湴浣跨敤杩欎簺鍔熻兘銆?
+### 鏍瑰洜鍒嗘瀽
+鍓嶇灏忕▼搴忛〉闈綋绯讳腑锛岀己灏戜袱涓嫭绔嬬殑鍔熻兘椤甸潰锛屼笖涓汉涓績鏈彁渚涘鑸叆鍙ｏ細
+- 缂哄皯銆屽鏍告儏鍐点€嶉〉闈紝鐢ㄤ簬灞曠ず瀹℃牳缁熻鏁版嵁鍜屽鏍歌褰曞垪琛?- 缂哄皯銆屾晱鎰熻瘝绠＄悊銆嶉〉闈紝鐢ㄤ簬绠＄悊鏁忔劅璇嶅簱锛堝鍒犳敼鏌ャ€佹壒閲忓鍏ワ級
+- 涓汉涓績锛坧rofile 椤碉級娌℃湁瀵瑰簲鍏ュ彛鎸夐挳锛岀敤鎴锋棤娉曟壘鍒拌繖浜涘姛鑳?
+### 淇鏂规
+
+#### 涓€銆佸悗绔鏍告ā鍧楋紙宸插瓨鍦級
+
+鍚庣宸插疄鐜板畬鏁寸殑鍐呭瀹℃牳妯″潡锛屼互涓嬪姛鑳藉潎鍙敤锛?
+| 妯″潡 | 鏂囦欢 | 鍔熻兘璇存槑 |
+|------|------|---------|
+| 鏁忔劅璇嶆ā鍨?| `backend/src/models/SensitiveWord.js` | 鏁忔劅璇嶆暟鎹ā鍨嬶紝鍚垎绫汇€佺瓑绾с€佸惎鐢ㄧ姸鎬?|
+| 瀹℃牳璁板綍妯″瀷 | `backend/src/models/AuditLog.js` | 瀹℃牳璁板綍妯″瀷锛?0澶㏕TL鑷姩杩囨湡 |
+| 瀹℃牳鏈嶅姟 | `backend/src/services/auditService.js` | DFA绠楁硶鏁忔劅璇嶅尮閰嶃€佸垎绾у鏍哥瓥鐣?|
+| 瀹℃牳鎺у埗鍣?| `backend/src/controllers/auditController.js` | 8涓狝PI鎺ュ彛鐨勪笟鍔￠€昏緫 |
+| 瀹℃牳璺敱 | `backend/src/routes/auditRoutes.js` | RESTful API璺敱锛堟寕杞戒簬 /api/audit锛?|
+
+**鏍稿績瀹℃牳绛栫暐**锛?- **Level 3锛堥珮椋庨櫓锛?*锛氱洿鎺ユ嫤鎴紝涓嶅厑璁稿彂甯冿紙action: blocked锛?- **Level 1-2锛堜腑浣庨闄╋級**锛氳嚜鍔ㄦ墦鐮佸睆钄斤紝鍏佽鍙戝竷锛坅ction: masked锛?- **鏃犲懡涓?*锛氱洿鎺ラ€氳繃锛坅ction: passed锛?
+**宸叉帴鍏ュ鏍哥殑鍏ュ彛**锛?- 鍙戝笘锛坈reatePost / updatePost锛?- 瓒呯骇鍥炲０锛坈reateSuperEcho锛?- 璇勮涓庡洖澶嶏紙createComment / createCommentReply锛?- 绉佷俊鍙戦€侊紙HTTP sendMessage + WebSocket 娑堟伅锛?
+---
+
+#### 浜屻€佸墠绔柊澧烇細瀹℃牳鎯呭喌椤甸潰锛坅uditLogs锛?
+鍒涘缓鐙珛鐨勫鏍告儏鍐甸〉闈紝鎻愪緵鏁版嵁缁熻鍜岃褰曟煡璇㈠姛鑳姐€?
+**椤甸潰璺緞**锛歚miniprogram/pages/auditLogs/`
+
+**鍖呭惈鏂囦欢**锛?- `auditLogs.js` - 椤甸潰閫昏緫
+- `auditLogs.wxml` - 椤甸潰缁撴瀯
+- `auditLogs.wxss` - 椤甸潰鏍峰紡
+- `auditLogs.json` - 椤甸潰閰嶇疆
+
+**鍔熻兘鐗规€?*锛?
+**Tab 1锛氭暟鎹粺璁?*
+- 姒傝鍗＄墖锛氭€诲鏍告暟銆佸凡鎷︽埅銆佸凡鎵撶爜銆佸凡閫氳繃
+- 鎷︽埅鐜囪繘搴︽潯鍙鍖?- 鏃堕棿鑼冨洿鍒囨崲锛氳繎 7 澶?/ 杩?30 澶?/ 杩?90 澶?- 姣忔棩瓒嬪娍鏌辩姸鍥撅紙鎷︽埅 + 鎵撶爜鍫嗗彔锛?- 鎸夊唴瀹圭被鍨嬬粺璁″垪琛紙甯栧瓙銆佽瘎璁恒€佹秷鎭瓑锛?
+**Tab 2锛氬鏍歌褰?*
+- 绫诲瀷绛涢€夛細鍏ㄩ儴 / 甯栧瓙 / 瓒呯骇鍥炲０ / 璇勮 / 璇勮鍥炲 / 绉佷俊
+- 澶勭悊缁撴灉绛涢€夛細鍏ㄩ儴 / 宸叉嫤鎴?/ 宸叉墦鐮?/ 宸查€氳繃
+- 璁板綍鍒楄〃锛氬睍绀哄唴瀹圭被鍨嬨€佸鐞嗙粨鏋溿€佸唴瀹规憳瑕併€佸懡涓晱鎰熻瘝棰勮銆佹椂闂?- 璇︽儏寮圭獥锛氱偣鍑昏褰曟煡鐪嬪畬鏁村唴瀹瑰拰鍛戒腑璇︽儏
+- 鍒嗛〉鍔犺浇锛氫笂鎷夊姞杞芥洿澶?
+---
+
+#### 涓夈€佸墠绔柊澧烇細鏁忔劅璇嶇鐞嗛〉闈紙sensitiveWords锛?
+鍒涘缓鐙珛鐨勬晱鎰熻瘝绠＄悊椤甸潰锛屾敮鎸佽瘝搴撶淮鎶ゃ€?
+**椤甸潰璺緞**锛歚miniprogram/pages/sensitiveWords/`
+
+**鍖呭惈鏂囦欢**锛?- `sensitiveWords.js` - 椤甸潰閫昏緫
+- `sensitiveWords.wxml` - 椤甸潰缁撴瀯
+- `sensitiveWords.wxss` - 椤甸潰鏍峰紡
+- `sensitiveWords.json` - 椤甸潰閰嶇疆
+
+**鍔熻兘鐗规€?*锛?
+**Tab 1锛氳瘝搴撳垪琛?*
+- 鎼滅储锛氭寜鍏抽敭璇嶆ā绯婃悳绱㈡晱鎰熻瘝
+- 鍒嗙被绛涢€夛細鍏ㄩ儴鍒嗙被 / 鏀挎不鏁忔劅 / 鏆村姏鎭愭€?/ 鑹叉儏浣庝織 / 骞垮憡鎺ㄥ箍 / 杈遍獋鏀诲嚮 / 鍏朵粬
+- 鐘舵€佺瓫閫夛細鍏ㄩ儴 / 宸插惎鐢?/ 宸茬鐢?- 鍒楄〃椤癸細鏁忔劅璇嶆枃鏈€佺瓑绾ф爣绛撅紙L1/L2/L3锛岄鑹插尯鍒嗭級銆佸垎绫绘爣绛俱€佸垱寤烘椂闂?- 鎿嶄綔锛氬惎鐢?绂佺敤鍒囨崲銆佸垹闄?- 鍒嗛〉鍔犺浇
+
+**Tab 2锛氬崟涓坊鍔?*
+- 鏁忔劅璇嶈緭鍏ユ
+- 鍒嗙被閫夋嫨鍣紙Picker锛?- 椋庨櫓绛夌骇閫夋嫨鍣紙Picker锛?-3绾э級
+- 娣诲姞鎸夐挳
+
+**Tab 3锛氭壒閲忓鍏?*
+- 榛樿鍒嗙被閫夋嫨鍣?- 榛樿绛夌骇閫夋嫨鍣?- 澶氳鏂囨湰杈撳叆妗嗭紙姣忚涓€涓晱鎰熻瘝锛?- 鏍煎紡璇存槑鎻愮ず
+- 鎵归噺瀵煎叆鎸夐挳
+
+**棰濆鎿嶄綔**锛?- 鍒濆鍖栭粯璁よ瘝搴擄紙涓€閿坊鍔?8 涓璁炬晱鎰熻瘝锛?- 鍒锋柊缂撳瓨锛堟墜鍔ㄨЕ鍙戝唴瀛樼紦瀛樺埛鏂帮級
+
+---
+
+#### 鍥涖€佸墠绔叆鍙ｏ細涓汉涓績娣诲姞瀵艰埅
+
+鍦ㄤ釜浜轰腑蹇冿紙宀涘笨绌洪棿锛夐〉闈㈡坊鍔犮€屽唴瀹瑰鏍哥鐞嗐€嶅崱鐗囷紝鍖呭惈涓や釜鍏ュ彛鎸夐挳銆?
+**淇敼鏂囦欢**锛?- `miniprogram/pages/profile/profile.wxml` - 娣诲姞鍏ュ彛鍗＄墖
+- `miniprogram/pages/profile/profile.js` - 娣诲姞璺宠浆鏂规硶
+- `miniprogram/pages/profile/profile.wxss` - 琛ュ厖鍗犱綅绗︽牱寮?- `miniprogram/app.json` - 娉ㄥ唽鏂伴〉闈㈠埌 pages 鏁扮粍
+
+**鍏ュ彛浣嶇疆**锛?浣嶄簬銆屾垜鐨勯鐜囥€嶅崱鐗囦笅鏂广€併€岄€€鍑虹櫥褰曘€嶆寜閽笂鏂癸紝鐙珛鐨?ocean-card 鍗＄墖锛屾爣棰樹负銆屽唴瀹瑰鏍哥鐞嗐€嶏紝鍖呭惈涓や釜鎸夐挳锛?- 瀹℃牳鎯呭喌 鈫?璺宠浆鍒?auditLogs 椤甸潰
+- 鏁忔劅璇嶇鐞?鈫?璺宠浆鍒?sensitiveWords 椤甸潰
+
+**璁捐瑙勮寖**锛?- 娌跨敤椤圭洰娴锋磱椋庢牸UI锛坥cean-card銆乥tn-secondary 绛夋牱寮忕被锛?- 涓夊垪 actions-grid 甯冨眬锛堜笌鏀惰棌澶规ā鍧椾竴鑷达級
+- 绗笁鍒椾负鍗犱綅锛屼繚鎸佸竷灞€鏁撮綈
+
+---
+
+#### 浜斻€丄PI 閰嶇疆
+
+鍦ㄥ墠绔厤缃枃浠朵腑娣诲姞瀹℃牳鐩稿叧 API 璺緞锛?
+**鏂囦欢**锛歚miniprogram/config/index.js`
+
+```javascript
+AUDIT_SENSITIVE_WORDS_INIT: '/api/audit/sensitive-words/init',
+AUDIT_SENSITIVE_WORDS: '/api/audit/sensitive-words',
+AUDIT_SENSITIVE_WORDS_BATCH: '/api/audit/sensitive-words/batch',
+AUDIT_SENSITIVE_WORDS_PREFIX: '/api/audit/sensitive-words',
+AUDIT_LOGS: '/api/audit/logs',
+AUDIT_STATS: '/api/audit/stats',
+AUDIT_CACHE_REFRESH: '/api/audit/cache/refresh',
+```
+
+---
+
+### 娑夊強鏂囦欢娓呭崟
+
+| 绫诲瀷 | 鏂囦欢璺緞 | 鏀瑰姩璇存槑 |
+|------|---------|---------|
+| 鍚庣锛堝凡鏈夛級| `backend/src/models/SensitiveWord.js` | 鏁忔劅璇嶆暟鎹ā鍨?|
+| 鍚庣锛堝凡鏈夛級| `backend/src/models/AuditLog.js` | 瀹℃牳璁板綍妯″瀷 |
+| 鍚庣锛堝凡鏈夛級| `backend/src/services/auditService.js` | DFA瀹℃牳鏈嶅姟 |
+| 鍚庣锛堝凡鏈夛級| `backend/src/controllers/auditController.js` | 瀹℃牳鎺у埗鍣?|
+| 鍚庣锛堝凡鏈夛級| `backend/src/routes/auditRoutes.js` | 瀹℃牳璺敱 |
+| 鏂板椤甸潰 | `miniprogram/pages/auditLogs/auditLogs.js` | 瀹℃牳鎯呭喌椤甸潰閫昏緫 |
+| 鏂板椤甸潰 | `miniprogram/pages/auditLogs/auditLogs.wxml` | 瀹℃牳鎯呭喌椤甸潰缁撴瀯 |
+| 鏂板椤甸潰 | `miniprogram/pages/auditLogs/auditLogs.wxss` | 瀹℃牳鎯呭喌椤甸潰鏍峰紡 |
+| 鏂板椤甸潰 | `miniprogram/pages/auditLogs/auditLogs.json` | 瀹℃牳鎯呭喌椤甸潰閰嶇疆 |
+| 鏂板椤甸潰 | `miniprogram/pages/sensitiveWords/sensitiveWords.js` | 鏁忔劅璇嶇鐞嗛〉闈㈤€昏緫 |
+| 鏂板椤甸潰 | `miniprogram/pages/sensitiveWords/sensitiveWords.wxml` | 鏁忔劅璇嶇鐞嗛〉闈㈢粨鏋?|
+| 鏂板椤甸潰 | `miniprogram/pages/sensitiveWords/sensitiveWords.wxss` | 鏁忔劅璇嶇鐞嗛〉闈㈡牱寮?|
+| 鏂板椤甸潰 | `miniprogram/pages/sensitiveWords/sensitiveWords.json` | 鏁忔劅璇嶇鐞嗛〉闈㈤厤缃?|
+| 淇敼 | `miniprogram/app.json` | 娉ㄥ唽涓や釜鏂伴〉闈㈠埌 pages 鏁扮粍 |
+| 淇敼 | `miniprogram/config/index.js` | 娣诲姞瀹℃牳鐩稿叧 API 閰嶇疆 |
+| 淇敼 | `miniprogram/pages/profile/profile.wxml` | 娣诲姞銆屽唴瀹瑰鏍哥鐞嗐€嶅叆鍙ｅ崱鐗?|
+| 淇敼 | `miniprogram/pages/profile/profile.js` | 娣诲姞 goAuditLogs / goSensitiveWords 璺宠浆鏂规硶 |
+| 淇敼 | `miniprogram/pages/profile/profile.wxss` | 琛ュ厖 action-grid-placeholder 鏍峰紡 |
+
+---
+
+### 浣跨敤璇存槑
+
+#### 1. 棣栨浣跨敤锛氬垵濮嬪寲榛樿璇嶅簱
+1. 杩涘叆銆屾垜鐨勩€峊ab 鈫?鎵惧埌銆屽唴瀹瑰鏍哥鐞嗐€嶅崱鐗?2. 鐐瑰嚮銆屾晱鎰熻瘝绠＄悊銆嶈繘鍏?3. 鍒囨崲鍒般€屽崟涓坊鍔犮€峊ab锛岀偣鍑诲簳閮ㄣ€屽垵濮嬪寲榛樿璇嶅簱銆嶆寜閽?4. 绯荤粺浼氳嚜鍔ㄦ坊鍔?8 涓璁剧殑鍚勭被鍒晱鎰熻瘝锛堢敤浜庢祴璇曪級
+5. 涔熷彲浠ョ偣鍑汇€屽埛鏂扮紦瀛樸€嶆墜鍔ㄥ埛鏂板唴瀛樼紦瀛?
+#### 2. 鍗曚釜娣诲姞鏁忔劅璇?1. 鍦ㄦ晱鎰熻瘝绠＄悊椤靛垏鎹㈠埌銆屽崟涓坊鍔犮€峊ab
+2. 杈撳叆鏁忔劅璇嶆枃鏈?3. 閫夋嫨鍒嗙被锛堟斂娌绘晱鎰?鏆村姏鎭愭€?鑹叉儏浣庝織/骞垮憡鎺ㄥ箍/杈遍獋鏀诲嚮/鍏朵粬锛?4. 閫夋嫨椋庨櫓绛夌骇锛?-3 绾э紝3 绾ф渶楂樹細鐩存帴鎷︽埅锛?5. 鐐瑰嚮銆屾坊鍔犳晱鎰熻瘝銆嶆寜閽?
+#### 3. 鎵归噺瀵煎叆鏁忔劅璇?1. 鍦ㄦ晱鎰熻瘝绠＄悊椤靛垏鎹㈠埌銆屾壒閲忓鍏ャ€峊ab
+2. 閫夋嫨榛樿鍒嗙被鍜岄粯璁ょ瓑绾э紙鎵€鏈夊鍏ョ殑璇嶉兘浼氫娇鐢ㄨ繖浜涜缃級
+3. 鍦ㄦ枃鏈涓緭鍏ユ晱鎰熻瘝锛?*姣忚涓€涓?*
+4. 鐐瑰嚮銆屾壒閲忓鍏ャ€嶆寜閽?
+#### 4. 鏌ョ湅瀹℃牳鎯呭喌
+1. 鍦ㄤ釜浜轰腑蹇冪偣鍑汇€屽鏍告儏鍐点€嶈繘鍏?2. 銆屾暟鎹粺璁°€峊ab锛氭煡鐪嬫€昏鏁版嵁銆佹瘡鏃ヨ秼鍔垮浘銆佹寜绫诲瀷缁熻
+3. 鍒囨崲鏃堕棿鑼冨洿锛?澶?30澶?90澶╋級鏌ョ湅涓嶅悓鏃舵鏁版嵁
+4. 銆屽鏍歌褰曘€峊ab锛氭煡鐪嬪叿浣撶殑瀹℃牳璁板綍
+5. 浣跨敤椤堕儴绛涢€夊櫒鎸夌被鍨嬫垨澶勭悊缁撴灉杩囨护
+6. 鐐瑰嚮鏌愭潯璁板綍鍙煡鐪嬭鎯咃紙瀹屾暣鍐呭銆佸懡涓殑鏁忔劅璇嶇瓑锛?
+#### 5. 绠＄悊鏁忔劅璇?1. 鍦ㄦ晱鎰熻瘝绠＄悊椤电殑銆岃瘝搴撳垪琛ㄣ€峊ab
+2. 浣跨敤鎼滅储妗嗗拰绛涢€夊櫒鏌ユ壘鐗瑰畾鏁忔劅璇?3. 鐐瑰嚮銆屽惎鐢?绂佺敤銆嶆寜閽垏鎹㈡晱鎰熻瘝鐘舵€?4. 鐐瑰嚮銆屽垹闄ゃ€嶆寜閽Щ闄ゆ晱鎰熻瘝
+
+---
+
+### 鎶€鏈鐐?
+#### DFA 绠楁硶
+- 浣跨敤纭畾鏈夐檺鑷姩鏈猴紙DFA锛夊疄鐜伴珮鏁堟晱鎰熻瘝鍖归厤
+- 鏃堕棿澶嶆潅搴?O(n)锛宯 涓烘枃鏈暱搴?- 鏀寔娴烽噺鏁忔劅璇嶅簱锛屽尮閰嶆晥鐜囦笉鍙楄瘝搴撳ぇ灏忓奖鍝?- 鏁忔劅璇嶅瓨鍌ㄥ湪 MongoDB 涓紝鍚姩鏃跺姞杞藉埌鍐呭瓨鏋勫缓 DFA 鏍?
+#### 鍒嗙骇瀹℃牳绛栫暐
+- Level 3锛堥珮椋庨櫓锛夛細鐩存帴鎷︽埅锛岃繑鍥為敊璇紝涓嶅厑璁稿彂甯?- Level 1-2锛堜腑浣庨闄╋級锛氳嚜鍔ㄦ墦鐮侊紙鐢?`*` 鏇挎崲鏁忔劅瀛楃锛夛紝鍏佽鍙戝竷
+- 鏃犲懡涓細鐩存帴閫氳繃
+
+#### 缂撳瓨鏈哄埗
+- 鏁忔劅璇?DFA 鏍戠紦瀛樺湪鍐呭瓨涓?- 缂撳瓨鏈夋晥鏈?60 绉掞紝杩囨湡鍚庤嚜鍔ㄤ粠鏁版嵁搴撻噸鏂板姞杞?- 鏀寔鎵嬪姩鍒锋柊缂撳瓨锛坄/api/audit/cache/refresh`锛?- 娣诲姞/鍒犻櫎/淇敼鏁忔劅璇嶅悗寤鸿鎵嬪姩鍒锋柊缂撳瓨
+
+#### TTL 绱㈠紩
+- 瀹℃牳璁板綍浣跨敤 MongoDB TTL 绱㈠紩
+- 璁板綍淇濈暀 30 澶╋紝杩囨湡鑷姩鍒犻櫎
+- 鍑忓皯鏁版嵁搴撳瓨鍌ㄥ帇鍔?
+#### 灏忕▼搴?Picker 缁勪欢娉ㄦ剰浜嬮」
+- 寰俊灏忕▼搴忕殑 picker 缁勪欢涓嶆敮鎸佸湪 wxml 涓洿鎺ヤ娇鐢?JavaScript 鏂规硶锛堝 `findIndex`锛?- 蹇呴』鍦?js 涓淮鎶ゅ綋鍓嶉€変腑椤圭殑绱㈠紩鍊硷紙index锛?- wxml 涓€氳繃 `{{array[index]}}` 鐨勬柟寮忔樉绀洪€変腑椤?- 杩欐槸灏忕▼搴忓紑鍙戠殑甯歌鍧戯紝闇€瑕佺壒鍒敞鎰?
+#### UI/UX 璁捐瑙勮寖
+- 鎵€鏈夋柊澧為〉闈弗鏍奸伒寰」鐩捣娲嬮鏍艰璁?- 缁熶竴浣跨敤 `ocean-card`銆乣btn-primary`銆乣btn-secondary`銆乣tag-chip` 绛夋牱寮忕被
+- Tab 鍒囨崲浣跨敤 pill 椋庢牸鐨勫垏鎹㈠櫒
+- 淇濇寔涓庣幇鏈夐〉闈竴鑷寸殑闂磋窛銆佸渾瑙掋€侀厤鑹?- 鏀寔鏆楄壊涓婚锛堟繁娴疯摑鑳屾櫙 + 娴呰壊鏂囧瓧锛?

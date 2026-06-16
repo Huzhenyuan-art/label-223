@@ -87,6 +87,10 @@
   font-size: 24rpx;
 }
 
+.action-grid-placeholder {
+  height: 72rpx;
+}
+
 .login-state-card {
   margin-top: 12rpx;
 }

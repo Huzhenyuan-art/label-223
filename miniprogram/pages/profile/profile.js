@@ -115,6 +115,14 @@ Page({
     wx.navigateTo({ url: '/pages/groups/groups' });
   },
 
+  goAuditLogs() {
+    wx.navigateTo({ url: '/pages/auditLogs/auditLogs' });
+  },
+
+  goSensitiveWords() {
+    wx.navigateTo({ url: '/pages/sensitiveWords/sensitiveWords' });
+  },
+
   goDetail(event) {
     wx.navigateTo({ url: `/pages/detail/detail?id=${event.currentTarget.dataset.id}` });
   },
