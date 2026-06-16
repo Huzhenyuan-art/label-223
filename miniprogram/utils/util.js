@@ -62,17 +62,49 @@ const ensureLogin = (options = {}) => {
     redirect = true
   } = options;
 
-  const authToken = wx.getStorageSync('authToken');
+  let authToken;
+  try {
+    authToken = wx.getStorageSync('authToken');
+  } catch (e) {
+    console.error('[ensureLogin] get storage error:', e);
+    authToken = null;
+  }
+
   if (authToken) {
     return true;
   }
 
   if (showToast) {
-    wx.showToast({ title: '请先登录', icon: 'none' });
+    try {
+      wx.showToast({ title: '请先登录', icon: 'none' });
+    } catch (e) {
+      // ignore
+    }
   }
 
   if (redirect) {
-    wx.navigateTo({ url: '/pages/login/login' });
+    setTimeout(() => {
+      try {
+        const pages = getCurrentPages();
+        const currentPage = pages[pages.length - 1];
+        const currentRoute = currentPage ? currentPage.route : '';
+        if (currentRoute === 'pages/login/login') {
+          return;
+        }
+        wx.reLaunch({ url: '/pages/login/login' });
+      } catch (e) {
+        console.error('[ensureLogin] redirect error:', e);
+        try {
+          wx.redirectTo({ url: '/pages/login/login' });
+        } catch (e2) {
+          try {
+            wx.navigateTo({ url: '/pages/login/login' });
+          } catch (e3) {
+            console.error('[ensureLogin] all redirect methods failed');
+          }
+        }
+      }
+    }, showToast ? 500 : 0);
   }
 
   return false;

@@ -15,19 +15,24 @@ App({
   _socketHandlers: {},
 
   onLaunch() {
-    const userInfo = wx.getStorageSync('userInfo');
-    const authToken = wx.getStorageSync('authToken');
+    try {
+      const userInfo = wx.getStorageSync('userInfo');
+      const authToken = wx.getStorageSync('authToken');
 
-    if (userInfo && userInfo.id && authToken) {
-      this.globalData.isLogin = true;
-      this.globalData.userInfo = userInfo;
-      this.globalData.authToken = authToken;
-      socket.connect(authToken);
-      this._bindSocketEvents();
-      return;
+      if (userInfo && userInfo.id && authToken) {
+        this.globalData.isLogin = true;
+        this.globalData.userInfo = userInfo;
+        this.globalData.authToken = authToken;
+        socket.connect(authToken);
+        this._bindSocketEvents();
+        return;
+      }
+
+      this.onLogout({ redirect: true });
+    } catch (error) {
+      console.error('[app] onLaunch error:', error);
+      this.onLogout({ redirect: true });
     }
-
-    this.onLogout();
   },
 
   _bindSocketEvents() {
@@ -123,18 +128,48 @@ App({
     this._bindSocketEvents();
   },
 
-  onLogout() {
+  onLogout(options = {}) {
+    const { redirect = false } = options;
+
     this.globalData.isLogin = false;
     this.globalData.userInfo = null;
     this.globalData.authToken = '';
     this.globalData.unreadCount = 0;
     this.globalData.unreadConversations = {};
     this.globalData.unreadResonanceCount = 0;
-    wx.removeStorageSync('userInfo');
-    wx.removeStorageSync('authToken');
-    wx.removeStorageSync('userId');
-    wx.removeTabBarBadge({ index: 2 });
+
+    try {
+      wx.removeStorageSync('userInfo');
+      wx.removeStorageSync('authToken');
+      wx.removeStorageSync('userId');
+    } catch (e) {
+      console.error('[app] remove storage error:', e);
+    }
+
+    try {
+      wx.removeTabBarBadge({ index: 2 });
+    } catch (e) {
+      // ignore
+    }
+
     this._unbindSocketEvents();
     socket.disconnect();
+
+    if (redirect) {
+      try {
+        wx.reLaunch({ url: '/pages/login/login' });
+      } catch (e) {
+        console.error('[app] redirect to login error:', e);
+        try {
+          wx.redirectTo({ url: '/pages/login/login' });
+        } catch (e2) {
+          try {
+            wx.navigateTo({ url: '/pages/login/login' });
+          } catch (e3) {
+            console.error('[app] all redirect methods failed');
+          }
+        }
+      }
+    }
   }
 });

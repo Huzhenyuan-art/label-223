@@ -16,7 +16,9 @@
     "pages/groupDetail/groupDetail",
     "pages/groupMembers/groupMembers",
     "pages/sensitiveWords/sensitiveWords",
-    "pages/auditLogs/auditLogs"
+    "pages/auditLogs/auditLogs",
+    "pages/myItems/myItems",
+    "pages/transactions/transactions"
   ],
   "window": {
     "backgroundTextStyle": "dark",

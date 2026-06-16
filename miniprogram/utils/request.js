@@ -27,7 +27,21 @@ const request = (options) => {
         if (res.statusCode === 401 && options.authenticated !== false) {
           const app = getApp();
           if (app && typeof app.onLogout === 'function') {
-            app.onLogout();
+            app.onLogout({ redirect: true });
+          } else {
+            try {
+              wx.reLaunch({ url: '/pages/login/login' });
+            } catch (e) {
+              try {
+                wx.redirectTo({ url: '/pages/login/login' });
+              } catch (e2) {
+                try {
+                  wx.navigateTo({ url: '/pages/login/login' });
+                } catch (e3) {
+                  console.error('[request] redirect to login failed');
+                }
+              }
+            }
           }
           wx.showToast({ title: authToken ? '登录状态已失效' : '请先登录', icon: 'none' });
         } else if (isPremiumRequired) {
