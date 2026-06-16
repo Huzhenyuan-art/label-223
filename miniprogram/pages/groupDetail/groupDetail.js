@@ -1,6 +1,6 @@
 const request = require('../../utils/request');
 const config = require('../../config/index');
-const { ensureLogin, showFriendlyError, formatTimeAgo } = require('../../utils/util');
+const { ensureLogin, showFriendlyError, formatTimeAgo, safeNavigateTo } = require('../../utils/util');
 
 Page({
   data: {
@@ -135,9 +135,7 @@ Page({
   },
 
   goMembers() {
-    wx.navigateTo({
-      url: `/pages/groupMembers/groupMembers?id=${this.data.groupId}`
-    });
+    safeNavigateTo(`/pages/groupMembers/groupMembers?id=${this.data.groupId}`);
   },
 
   async refreshInviteCode() {

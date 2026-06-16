@@ -59,6 +59,85 @@ const parseTagsInput = (value) => {
 const LOGIN_PAGE_ROUTE = 'pages/login/login';
 const LOGIN_PAGE_URL = '/pages/login/login';
 
+const TAB_BAR_ROUTES = new Set([
+  'pages/index/index',
+  'pages/publish/publish',
+  'pages/messages/messages',
+  'pages/profile/profile'
+]);
+
+const getPagePath = (url) => url.split('?')[0].replace(/^\//, '');
+
+const preloadPage = (url, callback) => {
+  const run = () => {
+    try {
+      callback();
+    } catch (error) {
+      console.error('[nav] navigation callback failed:', url, error);
+    }
+  };
+
+  if (TAB_BAR_ROUTES.has(getPagePath(url))) {
+    run();
+    return;
+  }
+
+  if (typeof wx.preloadPage === 'function') {
+    wx.preloadPage({ url, success: run, fail: run });
+    return;
+  }
+
+  run();
+};
+
+const safeNavigateTo = (url, extra = {}) => {
+  const { fail, ...rest } = extra;
+  preloadPage(url, () => {
+    wx.navigateTo({
+      url,
+      ...rest,
+      fail: (error) => {
+        console.error('[nav] navigateTo failed:', url, error);
+        if (typeof fail === 'function') {
+          fail(error);
+        }
+      }
+    });
+  });
+};
+
+const safeRedirectTo = (url, extra = {}) => {
+  const { fail, ...rest } = extra;
+  preloadPage(url, () => {
+    wx.redirectTo({
+      url,
+      ...rest,
+      fail: (error) => {
+        console.error('[nav] redirectTo failed:', url, error);
+        if (typeof fail === 'function') {
+          fail(error);
+        }
+      }
+    });
+  });
+};
+
+const safeReLaunch = (url, extra = {}) => {
+  const { fail, ...rest } = extra;
+  preloadPage(url, () => {
+    wx.reLaunch({
+      url,
+      ...rest,
+      fail: (error) => {
+        console.error('[nav] reLaunch failed:', url, error);
+        if (typeof fail === 'function') {
+          fail(error);
+        }
+      }
+    });
+  });
+};
+
 const readAuthSession = () => {
   try {
     const userInfo = wx.getStorageSync('userInfo');
@@ -88,45 +167,14 @@ const redirectToLogin = (options = {}) => {
     return;
   }
 
-  const launch = () => {
-    if (getCurrentRoute() === LOGIN_PAGE_ROUTE) {
-      return;
-    }
-
-    if (replace) {
-      wx.reLaunch({
-        url: LOGIN_PAGE_URL,
-        fail: (error) => {
-          console.error('[auth] reLaunch login failed:', error);
-          wx.redirectTo({
-            url: LOGIN_PAGE_URL,
-            fail: (error2) => {
-              console.error('[auth] redirectTo login failed:', error2);
-              wx.navigateTo({ url: LOGIN_PAGE_URL });
-            }
-          });
-        }
-      });
-      return;
-    }
-
-    wx.navigateTo({
-      url: LOGIN_PAGE_URL,
-      fail: () => wx.reLaunch({ url: LOGIN_PAGE_URL })
-    });
-  };
-
-  // 先预加载登录页脚本，避免「Page has not been registered yet」超时白屏
-  if (typeof wx.preloadPage === 'function') {
-    wx.preloadPage({
-      url: LOGIN_PAGE_URL,
-      success: launch,
-      fail: launch
-    });
+  if (replace) {
+    safeReLaunch(LOGIN_PAGE_URL);
     return;
   }
 
-  launch();
+  safeNavigateTo(LOGIN_PAGE_URL, {
+    fail: () => safeReLaunch(LOGIN_PAGE_URL)
+  });
 };
 
 const goToLogin = () => {
@@ -180,6 +228,9 @@ module.exports = {
   isAuthenticated,
   goToLogin,
   redirectToLogin,
+  safeNavigateTo,
+  safeRedirectTo,
+  safeReLaunch,
   ensureLogin,
   showFriendlyError
 };

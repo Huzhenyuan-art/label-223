@@ -1,5 +1,6 @@
 const request = require('../../utils/request');
 const config = require('../../config/index');
+const { safeNavigateTo } = require('../../utils/util');
 
 Page({
   data: {
@@ -141,6 +142,6 @@ Page({
   goToDetail(e) {
     if (this.data.editMode) return;
     const id = e.currentTarget.dataset.id;
-    wx.navigateTo({ url: `/pages/detail/detail?id=${id}` });
+    safeNavigateTo(`/pages/detail/detail?id=${id}`);
   }
 });

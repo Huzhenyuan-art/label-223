@@ -1,6 +1,6 @@
 const request = require('../../utils/request');
 const config = require('../../config/index');
-const { ensureLogin, formatTimeAgo, formatDateLabel, parseTagsInput, showFriendlyError } = require('../../utils/util');
+const { ensureLogin, formatTimeAgo, formatDateLabel, parseTagsInput, showFriendlyError, safeNavigateTo } = require('../../utils/util');
 
 const flattenTree = (node, depth = 0, arr = []) => {
   if (!node) {
@@ -363,9 +363,7 @@ Page({
       const ids = [userId, post.author._id].sort();
       const conversationId = `${ids[0]}_${ids[1]}`;
 
-      wx.navigateTo({
-        url: `/pages/chat/chat?conversationId=${conversationId}&otherUserId=${post.author._id}&name=${encodeURIComponent(tempNickname || '同频回声')}&revealed=0`
-      });
+      safeNavigateTo(`/pages/chat/chat?conversationId=${conversationId}&otherUserId=${post.author._id}&name=${encodeURIComponent(tempNickname || '同频回声')}&revealed=0`);
     } catch (error) {
       showFriendlyError(error, '私密海浪发送失败，请稍后重试');
     } finally {
@@ -378,9 +376,7 @@ Page({
     if (!post) {
       return;
     }
-    wx.navigateTo({
-      url: `/pages/edit/edit?editId=${post._id}`
-    });
+    safeNavigateTo(`/pages/edit/edit?editId=${post._id}`);
   },
 
   handleDelete() {

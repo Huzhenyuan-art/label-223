@@ -1,6 +1,6 @@
 const request = require('../../utils/request');
 const config = require('../../config/index');
-const { ensureLogin, showFriendlyError } = require('../../utils/util');
+const { ensureLogin, showFriendlyError, safeRedirectTo } = require('../../utils/util');
 
 Page({
   data: {
@@ -48,7 +48,7 @@ Page({
       });
       wx.showToast({ title: '创建成功', icon: 'success' });
       setTimeout(() => {
-        wx.redirectTo({ url: `/pages/groupDetail/groupDetail?id=${group.id}` });
+        safeRedirectTo(`/pages/groupDetail/groupDetail?id=${group.id}`);
       }, 800);
     } catch (error) {
       this.setData({ submitting: false });

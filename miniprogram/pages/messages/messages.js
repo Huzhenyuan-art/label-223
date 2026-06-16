@@ -1,7 +1,7 @@
 const request = require('../../utils/request');
 const config = require('../../config/index');
 const socket = require('../../utils/socket');
-const { ensureLogin, formatTimeAgo, showFriendlyError } = require('../../utils/util');
+const { ensureLogin, formatTimeAgo, showFriendlyError, safeNavigateTo } = require('../../utils/util');
 const app = getApp();
 
 Page({
@@ -127,8 +127,6 @@ Page({
 
   openChat(event) {
     const { conversationId, userId, name, reveal } = event.currentTarget.dataset;
-    wx.navigateTo({
-      url: `/pages/chat/chat?conversationId=${conversationId}&otherUserId=${userId}&name=${encodeURIComponent(name)}&revealed=${reveal ? '1' : '0'}`
-    });
+    safeNavigateTo(`/pages/chat/chat?conversationId=${conversationId}&otherUserId=${userId}&name=${encodeURIComponent(name)}&revealed=${reveal ? '1' : '0'}`);
   }
 });

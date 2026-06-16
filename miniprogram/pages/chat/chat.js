@@ -1,7 +1,7 @@
 const request = require('../../utils/request');
 const config = require('../../config/index');
 const socket = require('../../utils/socket');
-const { ensureLogin, formatTimeAgo, showFriendlyError } = require('../../utils/util');
+const { ensureLogin, formatTimeAgo, showFriendlyError, safeNavigateTo } = require('../../utils/util');
 const app = getApp();
 
 Page({
@@ -284,9 +284,7 @@ Page({
       return;
     }
 
-    wx.navigateTo({
-      url: `/pages/publicProfile/publicProfile?id=${this.data.otherUserId}`
-    });
+    safeNavigateTo(`/pages/publicProfile/publicProfile?id=${this.data.otherUserId}`);
   },
 
   openTempNicknameModal() {

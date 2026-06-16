@@ -995,6 +995,61 @@ Error: timeout
 ### 补充说明（2026-06-16 二次修复）
 第一次修复（延迟 reLaunch + 统一鉴权）未能解决控制台 `Page has not been registered yet` 报错。根因是登录页在 pages 数组中排位靠后（第 10 位），按需注入下代码包未预加载。最终方案为 **登录页设为入口页 + preloadPage 兜底**。
 
+### 补充说明（2026-06-16 三次修复）：全站页面注册超时
+
+#### 现象
+登录页修复后，进入「会员中心」等页面仍报：
+```
+Page "pages/member/member" has not been registered yet.
+Error: timeout
+```
+
+#### 根因
+与登录页相同：**微信基础库 3.x 按需注入**下，只有入口页 + TabBar 页会在启动时预加载 JS。其余页面（`member`、`favorites`、`auditLogs`、`tagChannels` 等）首次通过 `wx.navigateTo` 跳转时，若未先 `wx.preloadPage`，均可能触发 `Page has not been registered yet`。
+
+#### 受影响页面（非 TabBar，首次跳转均有风险）
+| 页面 | 路径 | pages 排位 |
+|------|------|-----------|
+| 频率详情 | pages/detail/detail | 6 |
+| 编辑频率 | pages/edit/edit | 7 |
+| 聊天 | pages/chat/chat | 8 |
+| **会员中心** | pages/member/member | 9 |
+| 公开主页 | pages/publicProfile/publicProfile | 10 |
+| 收藏夹 | pages/favorites/favorites | 11 |
+| 小组列表 | pages/groups/groups | 12 |
+| 创建小组 | pages/groupCreate/groupCreate | 13 |
+| 小组详情 | pages/groupDetail/groupDetail | 14 |
+| 小组成员 | pages/groupMembers/groupMembers | 15 |
+| 敏感词管理 | pages/sensitiveWords/sensitiveWords | 16 |
+| 审核情况 | pages/auditLogs/auditLogs | 17 |
+| 我的物品 | pages/myItems/myItems | 18 |
+| 交易记录 | pages/transactions/transactions | 19 |
+| 标签频道列表 | pages/tagChannels/tagChannels | 20 |
+| 标签频道详情 | pages/tagChannel/tagChannel | 21 |
+
+TabBar 页面（index / publish / messages / profile）和入口页（login）不受此问题影响。
+
+#### 修复方案
+在 `util.js` 中新增统一安全导航方法，**跳转前先 `wx.preloadPage`**：
+- `safeNavigateTo(url)` — 替代 `wx.navigateTo`
+- `safeRedirectTo(url)` — 替代 `wx.redirectTo`
+- `safeReLaunch(url)` — 替代 `wx.reLaunch`
+
+全项目所有页面跳转已替换为上述方法（TabBar 仍用 `wx.switchTab`）。
+
+#### 涉及文件
+| 文件 | 改动 |
+|------|------|
+| `miniprogram/utils/util.js` | 新增 safeNavigateTo / safeRedirectTo / safeReLaunch |
+| `miniprogram/app.js` | 已登录启动跳转改用 safeReLaunch |
+| `miniprogram/utils/request.js` | 会员弹窗跳转改用 safeNavigateTo |
+| `miniprogram/pages/profile/profile.js` 等 15+ 页面 | 全部 navigateTo/redirectTo 替换 |
+
+#### 预防措施
+- **禁止直接调用 `wx.navigateTo` / `wx.redirectTo` / `wx.reLaunch`** 跳转非 TabBar 页面，统一使用 `safeXxx` 系列方法
+- 新增页面跳转时，从 `util.js` 导入对应安全导航方法
+- 若仍出现注册超时，检查目标页面 JS 顶部 `require` 是否在模块加载阶段抛错
+
 ---
 
 ## 闂锛氱己灏戝鏍告儏鍐垫煡鐪嬪叆鍙ｄ笌鏁忔劅璇嶇鐞嗗叆鍙?

@@ -1,6 +1,6 @@
 const request = require('../../utils/request');
 const config = require('../../config/index');
-const { ensureLogin, formatTimeAgo, showFriendlyError, goToLogin } = require('../../utils/util');
+const { ensureLogin, formatTimeAgo, showFriendlyError, goToLogin, safeNavigateTo } = require('../../utils/util');
 
 Page({
   data: {
@@ -104,27 +104,27 @@ Page({
   },
 
   goMemberPage() {
-    wx.navigateTo({ url: '/pages/member/member' });
+    safeNavigateTo('/pages/member/member');
   },
 
   goFavorites() {
-    wx.navigateTo({ url: '/pages/favorites/favorites' });
+    safeNavigateTo('/pages/favorites/favorites');
   },
 
   goGroups() {
-    wx.navigateTo({ url: '/pages/groups/groups' });
+    safeNavigateTo('/pages/groups/groups');
   },
 
   goAuditLogs() {
-    wx.navigateTo({ url: '/pages/auditLogs/auditLogs' });
+    safeNavigateTo('/pages/auditLogs/auditLogs');
   },
 
   goSensitiveWords() {
-    wx.navigateTo({ url: '/pages/sensitiveWords/sensitiveWords' });
+    safeNavigateTo('/pages/sensitiveWords/sensitiveWords');
   },
 
   goDetail(event) {
-    wx.navigateTo({ url: `/pages/detail/detail?id=${event.currentTarget.dataset.id}` });
+    safeNavigateTo(`/pages/detail/detail?id=${event.currentTarget.dataset.id}`);
   },
 
   async loadResonanceNotifications() {
@@ -163,7 +163,7 @@ Page({
     const app = getApp();
     app.globalData.unreadResonanceCount = newCount;
 
-    wx.navigateTo({ url: `/pages/detail/detail?id=${postid}` });
+    safeNavigateTo(`/pages/detail/detail?id=${postid}`);
   },
 
   async markAllResonanceRead() {

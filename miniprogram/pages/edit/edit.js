@@ -1,6 +1,6 @@
 const request = require('../../utils/request');
 const config = require('../../config/index');
-const { parseTagsInput, ensureLogin, showFriendlyError } = require('../../utils/util');
+const { parseTagsInput, ensureLogin, showFriendlyError, safeRedirectTo } = require('../../utils/util');
 const {
   chooseAndUploadImage,
   chooseAndUploadAudio,
@@ -287,7 +287,7 @@ Page({
       const post = await request.put(`${config.API.UPDATE_POST}/${this.data.editId}`, postData);
       wx.showToast({ title: '修改已保存', icon: 'success' });
       setTimeout(() => {
-        wx.redirectTo({ url: `/pages/detail/detail?id=${post._id}` });
+        safeRedirectTo(`/pages/detail/detail?id=${post._id}`);
       }, 1500);
     } catch (error) {
       showFriendlyError(error, '保存失败，请稍后重试');

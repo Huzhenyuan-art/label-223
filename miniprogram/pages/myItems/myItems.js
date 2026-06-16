@@ -1,5 +1,5 @@
 const { get, del } = require('../../utils/request');
-const { formatTime, formatPrice, getImageUrl, getCategoryLabel } = require('../../utils/util');
+const { formatTime, formatPrice, getImageUrl, getCategoryLabel, safeNavigateTo } = require('../../utils/util');
 const config = require('../../config/index');
 
 Page({
@@ -35,7 +35,7 @@ Page({
 
   goToDetail(e) {
     const id = e.currentTarget.dataset.id;
-    wx.navigateTo({ url: `/pages/detail/detail?id=${id}` });
+    safeNavigateTo(`/pages/detail/detail?id=${id}`);
   },
 
   onEdit(e) {

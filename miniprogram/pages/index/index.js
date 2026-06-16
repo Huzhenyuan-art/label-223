@@ -1,6 +1,6 @@
 const request = require('../../utils/request');
 const config = require('../../config/index');
-const { ensureLogin, formatTimeAgo, parseTagsInput, showFriendlyError } = require('../../utils/util');
+const { ensureLogin, formatTimeAgo, parseTagsInput, showFriendlyError, safeNavigateTo } = require('../../utils/util');
 
 Page({
   data: {
@@ -173,7 +173,7 @@ Page({
   },
 
   handleManageTags() {
-    wx.navigateTo({ url: '/pages/tagChannels/tagChannels' });
+    safeNavigateTo('/pages/tagChannels/tagChannels');
   },
 
   handleKeywordInput(event) {
@@ -232,6 +232,6 @@ Page({
 
   goDetail(event) {
     const postId = event.currentTarget.dataset.id;
-    wx.navigateTo({ url: `/pages/detail/detail?id=${postId}` });
+    safeNavigateTo(`/pages/detail/detail?id=${postId}`);
   }
 });

@@ -1,6 +1,6 @@
 const request = require('../../utils/request');
 const config = require('../../config/index');
-const { ensureLogin, formatTimeAgo, showFriendlyError } = require('../../utils/util');
+const { ensureLogin, formatTimeAgo, showFriendlyError, safeNavigateTo } = require('../../utils/util');
 
 Page({
   data: {
@@ -43,6 +43,6 @@ Page({
   },
 
   goDetail(event) {
-    wx.navigateTo({ url: `/pages/detail/detail?id=${event.currentTarget.dataset.id}` });
+    safeNavigateTo(`/pages/detail/detail?id=${event.currentTarget.dataset.id}`);
   }
 });

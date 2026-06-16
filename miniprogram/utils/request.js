@@ -1,5 +1,5 @@
 const config = require('../config/index');
-const { redirectToLogin } = require('./util');
+const { redirectToLogin, safeNavigateTo } = require('./util');
 
 const request = (options) => {
   return new Promise((resolve, reject) => {
@@ -41,7 +41,7 @@ const request = (options) => {
             cancelText: '暂不',
             success: (modalRes) => {
               if (modalRes.confirm) {
-                wx.navigateTo({ url: '/pages/member/member' });
+                safeNavigateTo('/pages/member/member');
               }
             }
           });

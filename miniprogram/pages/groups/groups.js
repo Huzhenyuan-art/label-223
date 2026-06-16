@@ -1,6 +1,6 @@
 const request = require('../../utils/request');
 const config = require('../../config/index');
-const { ensureLogin, showFriendlyError, formatTimeAgo } = require('../../utils/util');
+const { ensureLogin, showFriendlyError, formatTimeAgo, safeNavigateTo } = require('../../utils/util');
 
 Page({
   data: {
@@ -36,7 +36,7 @@ Page({
   },
 
   goCreate() {
-    wx.navigateTo({ url: '/pages/groupCreate/groupCreate' });
+    safeNavigateTo('/pages/groupCreate/groupCreate');
   },
 
   openJoinModal() {
@@ -74,6 +74,6 @@ Page({
 
   goDetail(e) {
     const groupId = e.currentTarget.dataset.id;
-    wx.navigateTo({ url: `/pages/groupDetail/groupDetail?id=${groupId}` });
+    safeNavigateTo(`/pages/groupDetail/groupDetail?id=${groupId}`);
   }
 });

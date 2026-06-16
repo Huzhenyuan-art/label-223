@@ -1,6 +1,6 @@
 const request = require('../../utils/request');
 const config = require('../../config/index');
-const { parseTagsInput, ensureLogin, showFriendlyError } = require('../../utils/util');
+const { parseTagsInput, ensureLogin, showFriendlyError, safeRedirectTo } = require('../../utils/util');
 const {
   chooseAndUploadImage,
   chooseAndUploadAudio,
@@ -315,7 +315,7 @@ Page({
         });
       }
 
-      wx.redirectTo({ url: `/pages/detail/detail?id=${post._id}` });
+      safeRedirectTo(`/pages/detail/detail?id=${post._id}`);
     } catch (error) {
       const fallbackMsg = this.data.isEditMode ? '保存失败，请稍后重试' : '发射失败，请稍后重试';
       showFriendlyError(error, fallbackMsg);

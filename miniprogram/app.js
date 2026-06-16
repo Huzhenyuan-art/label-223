@@ -1,7 +1,7 @@
 const socket = require('./utils/socket');
 const config = require('./config/index');
 const request = require('./utils/request');
-const { isAuthenticated, readAuthSession, redirectToLogin } = require('./utils/util');
+const { isAuthenticated, readAuthSession, redirectToLogin, safeReLaunch } = require('./utils/util');
 
 App({
   globalData: {
@@ -27,7 +27,7 @@ App({
         this.globalData.authBootstrapped = true;
         socket.connect(session.authToken);
         this._bindSocketEvents();
-        wx.reLaunch({ url: '/pages/index/index' });
+        safeReLaunch('/pages/index/index');
         return;
       }
 

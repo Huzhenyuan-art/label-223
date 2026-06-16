@@ -168,6 +168,7 @@ Page({
 
   goTagChannel(event) {
     const tag = event.currentTarget.dataset.tag;
-    wx.navigateTo({ url: `/pages/tagChannel/tagChannel?tag=${encodeURIComponent(tag)}` });
+    const { safeNavigateTo } = require('../../utils/util');
+    safeNavigateTo(`/pages/tagChannel/tagChannel?tag=${encodeURIComponent(tag)}`);
   }
 });
