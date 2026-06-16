@@ -69,6 +69,24 @@
   margin-left: 12rpx;
 }
 
+.actions-grid {
+  display: flex;
+  gap: 16rpx;
+  margin-top: 16rpx;
+}
+
+.action-cell {
+  flex: 1;
+  min-width: 0;
+}
+
+.action-grid-btn {
+  width: 100%;
+  height: 72rpx;
+  line-height: 72rpx;
+  font-size: 24rpx;
+}
+
 .login-state-card {
   margin-top: 12rpx;
 }
