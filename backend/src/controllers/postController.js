@@ -1,7 +1,8 @@
 const mongoose = require('mongoose');
-const { Post, Resonance, Comment } = require('../models');
+const { Post, Resonance, Comment, ResonanceNotification } = require('../models');
 const logger = require('../utils/logger');
 const config = require('../config');
+const { sendToUser } = require('../websocket');
 
 const sanitizeTags = (tags) => {
   const list = Array.isArray(tags) ? tags : [];
@@ -69,6 +70,29 @@ exports.createSuperEcho = async (req, res) => {
     });
 
     await Post.findByIdAndUpdate(parent._id, { $inc: { superEchoCount: 1 } });
+
+    if (parent.author.toString() !== req.userId.toString()) {
+      const notification = await ResonanceNotification.create({
+        recipient: parent.author,
+        post: parent._id,
+        superEcho: post._id,
+        sender: req.userId
+      });
+
+      await notification.populate('sender', 'nickname avatar dynamicTag');
+      await notification.populate('post', 'title dynamicTag');
+
+      sendToUser(parent.author.toString(), {
+        type: 'resonance_notify',
+        data: {
+          _id: notification._id,
+          post: notification.post,
+          superEcho: post._id,
+          sender: notification.sender,
+          createdAt: notification.createdAt
+        }
+      }).catch((e) => logger.error(`Push resonance notify error: ${e.message}`));
+    }
 
     logger.info(`Super echo created: ${post._id} -> ${parent._id}`);
 

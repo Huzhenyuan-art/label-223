@@ -31,6 +31,10 @@ const config = {
     REQUEST_REVEAL: '/api/messages/conversations/reveal',
     UNREAD_COUNT: '/api/messages/unread',
 
+    RESONANCE_NOTIFICATIONS: '/api/users/me/resonance-notifications',
+    RESONANCE_NOTIFICATIONS_UNREAD: '/api/users/me/resonance-notifications/unread-count',
+    RESONANCE_NOTIFICATIONS_READ: '/api/users/me/resonance-notifications/read',
+
     PAYMENT_PLANS: '/api/payments/plans',
     CHECKOUT: '/api/payments/checkout',
     MY_ORDERS: '/api/payments/orders/me',

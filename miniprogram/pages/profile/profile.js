@@ -10,6 +10,9 @@ Page({
     interestMap: [],
     favoritesByTag: [],
     myPosts: [],
+    resonanceNotifications: [],
+    unreadResonanceCount: 0,
+    resonanceNotifyLoading: false,
     loading: false,
     loadFailed: false
   },
@@ -25,6 +28,9 @@ Page({
         interestMap: [],
         favoritesByTag: [],
         myPosts: [],
+        resonanceNotifications: [],
+        unreadResonanceCount: 0,
+        resonanceNotifyLoading: false,
         loading: false,
         loadFailed: false
       });
@@ -56,12 +62,20 @@ Page({
         metrics: island.metrics,
         interestMap,
         favoritesByTag: island.favoritesByTag || [],
+        unreadResonanceCount: island.unreadResonanceNotificationCount || 0,
         myPosts: (myPosts || []).map((item) => ({
           ...item,
           timeAgo: formatTimeAgo(item.createdAt)
         })),
         loadFailed: false
       });
+
+      if (island.unreadResonanceNotificationCount > 0) {
+        this.loadResonanceNotifications();
+      }
+
+      const app = getApp();
+      app.globalData.unreadResonanceCount = island.unreadResonanceNotificationCount || 0;
     } catch (error) {
       const authExpired = error?.statusCode === 401 || (error?.statusCode === 404 && error?.message === 'User not found');
       if (authExpired) {
@@ -105,6 +119,64 @@ Page({
     wx.navigateTo({ url: `/pages/detail/detail?id=${event.currentTarget.dataset.id}` });
   },
 
+  async loadResonanceNotifications() {
+    this.setData({ resonanceNotifyLoading: true });
+
+    try {
+      const data = await request.get(config.API.RESONANCE_NOTIFICATIONS, { limit: 20 });
+      const list = (data.list || []).map((item) => ({
+        ...item,
+        timeAgo: formatTimeAgo(item.createdAt)
+      }));
+      this.setData({ resonanceNotifications: list });
+    } catch (error) {
+      showFriendlyError(error, '合鸣通知加载失败');
+    } finally {
+      this.setData({ resonanceNotifyLoading: false });
+    }
+  },
+
+  async goResonanceNotification(event) {
+    const { postid, notificationid } = event.currentTarget.dataset;
+
+    if (notificationid) {
+      try {
+        await request.post(config.API.RESONANCE_NOTIFICATIONS_READ, {
+          notificationIds: [notificationid]
+        });
+      } catch (e) {
+        // ignore
+      }
+    }
+
+    const newCount = Math.max(0, this.data.unreadResonanceCount - 1);
+    this.setData({ unreadResonanceCount: newCount });
+
+    const app = getApp();
+    app.globalData.unreadResonanceCount = newCount;
+
+    wx.navigateTo({ url: `/pages/detail/detail?id=${postid}` });
+  },
+
+  async markAllResonanceRead() {
+    try {
+      await request.post(config.API.RESONANCE_NOTIFICATIONS_READ, {});
+      this.setData({ unreadResonanceCount: 0 });
+      const app = getApp();
+      app.globalData.unreadResonanceCount = 0;
+
+      const notifications = this.data.resonanceNotifications.map((item) => ({
+        ...item,
+        read: true
+      }));
+      this.setData({ resonanceNotifications: notifications });
+
+      wx.showToast({ title: '已全部标记为已读', icon: 'success' });
+    } catch (error) {
+      showFriendlyError(error, '标记失败，请稍后重试');
+    }
+  },
+
   retryLoad() {
     if (!this.data.isLoggedIn) {
       this.goLogin();
@@ -123,6 +195,9 @@ Page({
       interestMap: [],
       favoritesByTag: [],
       myPosts: [],
+      resonanceNotifications: [],
+      unreadResonanceCount: 0,
+      resonanceNotifyLoading: false,
       loadFailed: false
     });
     wx.navigateTo({ url: '/pages/login/login' });

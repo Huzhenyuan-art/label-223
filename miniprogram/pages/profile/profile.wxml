@@ -33,6 +33,36 @@
   </view>
 
   <view class="ocean-card">
+    <view class="row-between">
+      <view class="section-title">合鸣通知</view>
+      <view wx:if="{{unreadResonanceCount > 0}}" class="mark-all-btn" bindtap="markAllResonanceRead">全部已读</view>
+    </view>
+    <view wx:if="{{unreadResonanceCount > 0}}" class="notify-badge-wrap">
+      <view class="notify-badge">{{unreadResonanceCount}}</view>
+      <view class="muted">条未读合鸣通知</view>
+    </view>
+    <block wx:if="{{resonanceNotifications.length}}">
+      <block wx:for="{{resonanceNotifications}}" wx:key="_id">
+        <view
+          class="notify-item {{item.read ? '' : 'notify-unread'}}"
+          data-postid="{{item.post._id}}"
+          data-notificationid="{{item._id}}"
+          bindtap="goResonanceNotification"
+        >
+          <view class="row-between">
+            <view class="notify-sender">{{item.sender.nickname || '同频回声'}}</view>
+            <view class="muted notify-time">{{item.timeAgo}}</view>
+          </view>
+          <view class="notify-content">对你的原频发起了合鸣</view>
+          <view class="notify-post-hint">「{{item.post.title || item.post.dynamicTag}}」谱系</view>
+        </view>
+      </block>
+    </block>
+    <view wx:elif="{{!resonanceNotifyLoading}}" class="muted">暂无合鸣通知。</view>
+    <view wx:if="{{resonanceNotifyLoading}}" class="muted">正在加载通知...</view>
+  </view>
+
+  <view class="ocean-card">
     <view class="section-title">兴趣星云图</view>
     <view class="wrap" wx:if="{{interestMap.length}}">
       <block wx:for="{{interestMap}}" wx:key="tag">

@@ -11,6 +11,7 @@ const DerivativeWaitlist = require('./DerivativeWaitlist');
 const BrandCampInquiry = require('./BrandCampInquiry');
 const PrivateGroup = require('./PrivateGroup');
 const PrivateGroupPost = require('./PrivateGroupPost');
+const ResonanceNotification = require('./ResonanceNotification');
 
 module.exports = {
   User,
@@ -25,5 +26,6 @@ module.exports = {
   DerivativeWaitlist,
   BrandCampInquiry,
   PrivateGroup,
-  PrivateGroupPost
+  PrivateGroupPost,
+  ResonanceNotification
 };

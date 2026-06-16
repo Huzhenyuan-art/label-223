@@ -230,6 +230,10 @@ const connect = (token) => {
         emit('unread', data.data);
         break;
 
+      case 'resonance_notify':
+        emit('resonanceNotify', data.data);
+        break;
+
       case 'error':
         console.error('[socket] server error:', data.message);
         emit('error', data);

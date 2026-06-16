@@ -8,7 +8,8 @@ App({
     isLogin: false,
     authToken: '',
     unreadCount: 0,
-    unreadConversations: {}
+    unreadConversations: {},
+    unreadResonanceCount: 0
   },
 
   _socketHandlers: {},
@@ -44,18 +45,24 @@ App({
       }
     };
 
-    this._socketHandlers = { onUnread, onMessage, onAuth };
+    const onResonanceNotify = () => {
+      this.refreshResonanceCount();
+    };
+
+    this._socketHandlers = { onUnread, onMessage, onAuth, onResonanceNotify };
 
     socket.on('unread', onUnread);
     socket.on('message', onMessage);
     socket.on('auth', onAuth);
+    socket.on('resonanceNotify', onResonanceNotify);
   },
 
   _unbindSocketEvents() {
-    const { onUnread, onMessage, onAuth } = this._socketHandlers;
+    const { onUnread, onMessage, onAuth, onResonanceNotify } = this._socketHandlers;
     socket.off('unread', onUnread);
     socket.off('message', onMessage);
     socket.off('auth', onAuth);
+    socket.off('resonanceNotify', onResonanceNotify);
     this._socketHandlers = {};
   },
 
@@ -88,6 +95,17 @@ App({
     }
   },
 
+  async refreshResonanceCount() {
+    try {
+      const data = await request.get(config.API.RESONANCE_NOTIFICATIONS_UNREAD);
+      const count = data?.count || 0;
+      this.globalData.unreadResonanceCount = count;
+      return count;
+    } catch (e) {
+      return 0;
+    }
+  },
+
   onLoginSuccess(session) {
     const userInfo = session?.user;
     const authToken = session?.token;
@@ -111,6 +129,7 @@ App({
     this.globalData.authToken = '';
     this.globalData.unreadCount = 0;
     this.globalData.unreadConversations = {};
+    this.globalData.unreadResonanceCount = 0;
     wx.removeStorageSync('userInfo');
     wx.removeStorageSync('authToken');
     wx.removeStorageSync('userId');

@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
-const { User, Post, Resonance, Comment, Message, RevealDecision } = require('../models');
+const { User, Post, Resonance, Comment, Message, RevealDecision, ResonanceNotification } = require('../models');
 const logger = require('../utils/logger');
 const { signToken } = require('../utils/auth');
 
@@ -215,7 +215,7 @@ exports.getIsland = async (req, res) => {
   try {
     const userId = req.userId;
 
-    const [user, authoredCount, resonanceReceivedAgg, commentCount, superEchoCount, interestMap, favoritesByTag] =
+    const [user, authoredCount, resonanceReceivedAgg, commentCount, superEchoCount, interestMap, favoritesByTag, unreadResonanceNotificationCount] =
       await Promise.all([
         User.findById(userId).lean(),
         Post.countDocuments({ author: userId }),
@@ -226,7 +226,8 @@ exports.getIsland = async (req, res) => {
         Comment.countDocuments({ user: userId }),
         Post.countDocuments({ author: userId, type: 'super_echo' }),
         buildInterestMap(userId),
-        buildFavoritesByTag(userId)
+        buildFavoritesByTag(userId),
+        ResonanceNotification.countDocuments({ recipient: userId, read: false })
       ]);
 
     if (!user) {
@@ -256,6 +257,7 @@ exports.getIsland = async (req, res) => {
           commentCount,
           superEchoCount
         },
+        unreadResonanceNotificationCount,
         interestMap,
         favoritesByTag
       }
@@ -542,6 +544,78 @@ exports.updateTagSkin = async (req, res) => {
     });
   } catch (error) {
     logger.error(`Update tag skin error: ${error.message}`);
+    return res.status(500).json({ code: 1, message: 'Server error' });
+  }
+};
+
+exports.getResonanceNotifications = async (req, res) => {
+  try {
+    const userId = req.userId;
+    const page = Number(req.query.page || 1);
+    const limit = Number(req.query.limit || 20);
+
+    const [list, total] = await Promise.all([
+      ResonanceNotification.find({ recipient: userId })
+        .populate('sender', 'nickname avatar dynamicTag')
+        .populate('post', 'title dynamicTag')
+        .populate('superEcho', 'title dynamicTag')
+        .sort({ createdAt: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .lean(),
+      ResonanceNotification.countDocuments({ recipient: userId })
+    ]);
+
+    return res.json({
+      code: 0,
+      data: {
+        list,
+        pagination: {
+          page,
+          limit,
+          total,
+          pages: Math.ceil(total / limit)
+        }
+      }
+    });
+  } catch (error) {
+    logger.error(`Get resonance notifications error: ${error.message}`);
+    return res.status(500).json({ code: 1, message: 'Server error' });
+  }
+};
+
+exports.getUnreadResonanceCount = async (req, res) => {
+  try {
+    const count = await ResonanceNotification.countDocuments({
+      recipient: req.userId,
+      read: false
+    });
+
+    return res.json({ code: 0, data: { count } });
+  } catch (error) {
+    logger.error(`Get unread resonance count error: ${error.message}`);
+    return res.status(500).json({ code: 1, message: 'Server error' });
+  }
+};
+
+exports.markResonanceNotificationsRead = async (req, res) => {
+  try {
+    const { notificationIds } = req.body;
+
+    const filter = { recipient: req.userId, read: false };
+
+    if (Array.isArray(notificationIds) && notificationIds.length > 0) {
+      filter._id = { $in: notificationIds };
+    }
+
+    const result = await ResonanceNotification.updateMany(filter, { read: true });
+
+    return res.json({
+      code: 0,
+      data: { modifiedCount: result.modifiedCount }
+    });
+  } catch (error) {
+    logger.error(`Mark resonance notifications read error: ${error.message}`);
     return res.status(500).json({ code: 1, message: 'Server error' });
   }
 };
