@@ -71,6 +71,27 @@ const postSchema = new mongoose.Schema(
       type: Number,
       default: 0,
       min: 0
+    },
+    status: {
+      type: String,
+      enum: ['published', 'removed'],
+      default: 'published',
+      index: true
+    },
+    removedAt: {
+      type: Date,
+      default: null
+    },
+    removedReason: {
+      type: String,
+      default: '',
+      trim: true,
+      maxlength: 500
+    },
+    removedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null
     }
   },
   {
@@ -81,5 +102,6 @@ const postSchema = new mongoose.Schema(
 postSchema.index({ createdAt: -1 });
 postSchema.index({ tags: 1, createdAt: -1 });
 postSchema.index({ parentPost: 1, createdAt: 1 });
+postSchema.index({ status: 1, createdAt: -1 });
 
 module.exports = mongoose.model('Post', postSchema);

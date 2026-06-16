@@ -14,7 +14,7 @@ const buildHotPostsPipeline = (startAt, maxItems, hotConfig, rankingConfig) => {
   const { heatBase, superEchoHeatMultiplier } = hotConfig;
 
   return [
-    { $match: { createdAt: { $gte: startAt } } },
+    { $match: { createdAt: { $gte: startAt }, status: 'published' } },
     {
       $addFields: {
         ageHours: {
@@ -54,7 +54,7 @@ const buildHotTagsPipeline = (startAt, maxTags, hotConfig) => {
   const { heatBase, superEchoHeatMultiplier } = hotConfig;
 
   return [
-    { $match: { createdAt: { $gte: startAt } } },
+    { $match: { createdAt: { $gte: startAt }, status: 'published' } },
     {
       $project: {
         tags: 1,

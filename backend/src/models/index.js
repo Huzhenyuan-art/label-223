@@ -14,6 +14,7 @@ const PrivateGroupPost = require('./PrivateGroupPost');
 const ResonanceNotification = require('./ResonanceNotification');
 const SensitiveWord = require('./SensitiveWord');
 const AuditLog = require('./AuditLog');
+const AdminOperationLog = require('./AdminOperationLog');
 const UserInterestTags = require('./UserInterestTags');
 const HotListSnapshot = require('./HotListSnapshot');
 const RecommendationCache = require('./RecommendationCache');
@@ -38,6 +39,7 @@ module.exports = {
   ResonanceNotification,
   SensitiveWord,
   AuditLog,
+  AdminOperationLog,
   UserInterestTags,
   HotListSnapshot,
   RecommendationCache,

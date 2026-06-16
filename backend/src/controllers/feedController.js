@@ -57,7 +57,7 @@ const getLegacyOceanFlow = async (req, res) => {
   const tags = sanitizeTags(req.query.tags);
   const keyword = (req.query.keyword || '').trim();
 
-  const filter = {};
+  const filter = { status: 'published' };
   if (tags.length > 0) {
     filter.tags = { $in: tags };
   }
@@ -157,7 +157,7 @@ const getLegacyHotTags = async (req, res) => {
   const oneHourAgo = new Date(Date.now() - 3600000);
 
   const buildPipeline = (startAt) => [
-    { $match: { createdAt: { $gte: startAt } } },
+    { $match: { createdAt: { $gte: startAt }, status: 'published' } },
     {
       $project: {
         tags: 1,
@@ -280,6 +280,10 @@ exports.getPostDetail = async (req, res) => {
       .populate('author', 'nickname avatar')
       .lean();
     if (!post) {
+      return res.status(404).json({ code: 1, message: 'Post not found' });
+    }
+
+    if (post.status === 'removed') {
       return res.status(404).json({ code: 1, message: 'Post not found' });
     }
 

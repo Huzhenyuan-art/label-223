@@ -62,7 +62,7 @@ const getOceanFlow = async (options) => {
     `[Recommendation] Computing fresh recommendation: mode=${mode}, page=${page}`
   );
 
-  const filter = {};
+  const filter = { status: 'published' };
   if (tags.length > 0) {
     filter.tags = { $in: tags };
   }
@@ -170,7 +170,7 @@ const searchDeepSea = async (options) => {
   const tags = sanitizeTags(rawTags);
   const keyword = (rawKeyword || '').trim();
 
-  const filter = {};
+  const filter = { status: 'published' };
 
   if (tags.length > 0) {
     filter.tags = { $all: tags };

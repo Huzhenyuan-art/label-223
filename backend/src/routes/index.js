@@ -9,6 +9,7 @@ const privateGroupRoutes = require('./privateGroupRoutes');
 const auditRoutes = require('./auditRoutes');
 const recommendationRoutes = require('./recommendationRoutes');
 const tagChannelRoutes = require('./tagChannelRoutes');
+const adminRoutes = require('./adminRoutes');
 
 module.exports = (app) => {
   app.use('/api/users', userRoutes);
@@ -22,4 +23,5 @@ module.exports = (app) => {
   app.use('/api/audit', auditRoutes);
   app.use('/api/recommendation', recommendationRoutes);
   app.use('/api/tags', tagChannelRoutes);
+  app.use('/api/admin', adminRoutes);
 };

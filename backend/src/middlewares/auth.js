@@ -28,6 +28,10 @@ const auth = async (req, res, next) => {
       return res.status(401).json({ code: 1, message: 'Unauthorized' });
     }
 
+    if (user.status === 'banned') {
+      return res.status(403).json({ code: 4, message: '账号已被封禁' });
+    }
+
     req.userId = user._id;
     req.user = user;
     return next();
@@ -40,7 +44,7 @@ const auth = async (req, res, next) => {
 const optionalAuth = async (req, res, next) => {
   try {
     const user = await resolveUser(req);
-    if (user) {
+    if (user && user.status !== 'banned') {
       req.userId = user._id;
       req.user = user;
     }
@@ -80,9 +84,30 @@ const requireAdmin = (req, res, next) => {
   return next();
 };
 
+const adminAuth = async (req, res, next) => {
+  try {
+    const user = await resolveUser(req);
+    if (!user) {
+      return res.status(401).json({ code: 1, message: '请先登录' });
+    }
+
+    if (!user.isAdmin) {
+      return res.status(403).json({ code: 3, message: '需要管理员权限' });
+    }
+
+    req.userId = user._id;
+    req.user = user;
+    return next();
+  } catch (error) {
+    logger.error(`Admin auth error: ${error.message}`);
+    return res.status(401).json({ code: 1, message: 'Unauthorized' });
+  }
+};
+
 module.exports = {
   auth,
   optionalAuth,
   requirePremium,
-  requireAdmin
+  requireAdmin,
+  adminAuth
 };
