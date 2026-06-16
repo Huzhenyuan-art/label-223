@@ -1,4 +1,6 @@
-<view class="container">
+<view class="container login-container">
+  <view wx:if="{{errorMessage}}" class="error-banner">{{errorMessage}}</view>
+
   <view class="hero-card">
     <view class="hero-title">找到你的频率</view>
     <view class="hero-subtitle">注册后即可发帖、收藏、私信和开通会员权益，进入一个不靠身份排名的社区。</view>

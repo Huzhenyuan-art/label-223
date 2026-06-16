@@ -1,5 +1,20 @@
+.login-container {
+  min-height: 100vh;
+  box-sizing: border-box;
+}
+
 .form-card {
   margin-bottom: 20rpx;
+}
+
+.error-banner {
+  background: #fff1f0;
+  color: #e74c3c;
+  padding: 20rpx 24rpx;
+  border-radius: 16rpx;
+  margin-bottom: 24rpx;
+  font-size: 26rpx;
+  text-align: center;
 }
 
 .mode-switch {

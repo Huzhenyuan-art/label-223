@@ -10,6 +10,7 @@ page {
 .container {
   padding: 24rpx;
   box-sizing: border-box;
+  min-height: 100vh;
 }
 
 .ocean-card {

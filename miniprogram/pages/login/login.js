@@ -12,12 +12,28 @@ Page({
     account: '',
     password: '',
     confirmPassword: '',
-    submitting: false
+    submitting: false,
+    pageReady: false,
+    errorMessage: ''
+  },
+
+  onLoad() {
+    try {
+      this.setData({ pageReady: true });
+      console.log('[login] page loaded');
+    } catch (error) {
+      console.error('[login] onLoad error:', error);
+      this.setData({ errorMessage: '页面加载异常，请重试' });
+    }
   },
 
   onShow() {
-    if (ensureLogin({ showToast: false, redirect: false })) {
-      wx.switchTab({ url: '/pages/profile/profile' });
+    try {
+      if (ensureLogin({ showToast: false, redirect: false })) {
+        wx.switchTab({ url: '/pages/profile/profile' });
+      }
+    } catch (error) {
+      console.error('[login] onShow error:', error);
     }
   },
 
@@ -41,38 +57,44 @@ Page({
   },
 
   validateForm() {
-    const mode = this.data.mode;
-    const nickname = this.data.nickname.trim();
-    const account = this.data.account.trim();
-    const password = this.data.password;
-    const confirmPassword = this.data.confirmPassword;
+    try {
+      const mode = this.data.mode;
+      const nickname = String(this.data.nickname || '').trim();
+      const account = String(this.data.account || '').trim();
+      const password = String(this.data.password || '');
+      const confirmPassword = String(this.data.confirmPassword || '');
 
-    if (mode === 'register' && nickname.length < 2) {
-      wx.showToast({ title: '请输入至少 2 个字的昵称', icon: 'none' });
+      if (mode === 'register' && nickname.length < 2) {
+        wx.showToast({ title: '请输入至少 2 个字的昵称', icon: 'none' });
+        return null;
+      }
+
+      if (!ACCOUNT_PATTERN.test(account)) {
+        wx.showToast({ title: '账号需 4-24 位字母、数字或下划线', icon: 'none' });
+        return null;
+      }
+
+      if (!hasStrongPassword(password)) {
+        wx.showToast({ title: '密码至少 8 位且包含字母和数字', icon: 'none' });
+        return null;
+      }
+
+      if (mode === 'register' && password !== confirmPassword) {
+        wx.showToast({ title: '两次输入的密码不一致', icon: 'none' });
+        return null;
+      }
+
+      return {
+        mode,
+        nickname,
+        account,
+        password
+      };
+    } catch (error) {
+      console.error('[login] validateForm error:', error);
+      wx.showToast({ title: '表单验证失败，请重试', icon: 'none' });
       return null;
     }
-
-    if (!ACCOUNT_PATTERN.test(account)) {
-      wx.showToast({ title: '账号需 4-24 位字母、数字或下划线', icon: 'none' });
-      return null;
-    }
-
-    if (!hasStrongPassword(password)) {
-      wx.showToast({ title: '密码至少 8 位且包含字母和数字', icon: 'none' });
-      return null;
-    }
-
-    if (mode === 'register' && password !== confirmPassword) {
-      wx.showToast({ title: '两次输入的密码不一致', icon: 'none' });
-      return null;
-    }
-
-    return {
-      mode,
-      nickname,
-      account,
-      password
-    };
   },
 
   async submitAuth() {
@@ -89,20 +111,11 @@ Page({
 
     try {
       const isRegister = form.mode === 'register';
-      const session = await request.post(
-        isRegister ? config.API.REGISTER : config.API.LOGIN,
-        isRegister
-          ? {
-            nickname: form.nickname,
-            account: form.account,
-            password: form.password
-          }
-          : {
-            account: form.account,
-            password: form.password
-          },
-        { authenticated: false }
-      );
+      const apiPath = isRegister ? config.API.REGISTER : config.API.LOGIN;
+      const requestData = isRegister
+        ? { nickname: form.nickname, account: form.account, password: form.password }
+        : { account: form.account, password: form.password };
+      const session = await request.post(apiPath, requestData, { authenticated: false });
 
       const app = getApp();
       app.onLoginSuccess(session);
