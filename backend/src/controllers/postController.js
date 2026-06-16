@@ -82,17 +82,21 @@ exports.createSuperEcho = async (req, res) => {
       await notification.populate('sender', 'nickname avatar');
       await notification.populate('post', 'title dynamicTag');
 
-      sendToUser(parent.author.toString(), {
-        type: 'resonance_notify',
-        data: {
-          _id: notification._id,
-          post: notification.post,
-          superEcho: post._id,
-          sender: notification.sender,
-          senderDynamicTag: post.dynamicTag,
-          createdAt: notification.createdAt
-        }
-      }).catch((e) => logger.error(`Push resonance notify error: ${e.message}`));
+      try {
+        sendToUser(parent.author.toString(), {
+          type: 'resonance_notify',
+          data: {
+            _id: notification._id,
+            post: notification.post,
+            superEcho: post._id,
+            sender: notification.sender,
+            senderDynamicTag: post.dynamicTag,
+            createdAt: notification.createdAt
+          }
+        });
+      } catch (e) {
+        logger.error(`Push resonance notify error: ${e.message}`);
+      }
     }
 
     logger.info(`Super echo created: ${post._id} -> ${parent._id}`);
