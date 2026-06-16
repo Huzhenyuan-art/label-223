@@ -1,12 +1,16 @@
 <view class="container">
   <view class="ocean-card">
     <view class="row-between">
-      <view class="chat-name">{{displayName}}</view>
+      <view class="chat-name" bindtap="openTempNicknameModal">{{displayName}}<text wx:if="{{reveal && !reveal.revealed}}" class="edit-icon"> ✎</text></view>
       <view class="chat-state">{{reveal && reveal.revealed ? '身份已揭示' : '动态标签对话中'}} {{!wsConnected ? '(连接中…)' : ''}}</view>
     </view>
 
     <view wx:if="{{reveal && !reveal.revealed}}" class="mt-12 muted">
       你 {{reveal.myCount || 0}} 条，对方 {{reveal.otherCount || 0}} 条。双方≥3条可申请揭示。
+    </view>
+
+    <view wx:if="{{myTempNickname && !reveal.revealed}}" class="mt-8 muted">
+      我的临时昵称：{{myTempNickname}}
     </view>
 
     <button
@@ -15,6 +19,14 @@
       bindtap="requestReveal"
     >
       申请揭示身份
+    </button>
+
+    <button
+      wx:if="{{reveal && !reveal.revealed}}"
+      class="btn-outline mt-12"
+      bindtap="openTempNicknameModal"
+    >
+      {{myTempNickname ? '修改临时昵称' : '设置本轮临时昵称'}}
     </button>
 
     <button
@@ -46,6 +58,25 @@
     <view class="row">
       <input class="input flex-1" placeholder="输入消息内容" value="{{content}}" data-key="content" bindinput="bindField" />
       <button class="btn-primary send-btn" bindtap="sendMessage">发送</button>
+    </view>
+  </view>
+
+  <view wx:if="{{showTempNicknameModal}}" class="modal-mask" bindtap="closeTempNicknameModal">
+    <view class="modal-content" catchtap="">
+      <view class="modal-title">设置本轮临时昵称</view>
+      <view class="modal-desc">对方在揭示身份前会看到这个昵称，而非「同频回声」</view>
+      <input
+        class="modal-input"
+        placeholder="请输入临时昵称（最多24字）"
+        value="{{tempNicknameInput}}"
+        maxlength="24"
+        bindinput="bindTempNicknameInput"
+        focus="{{showTempNicknameModal}}"
+      />
+      <view class="modal-actions">
+        <button class="btn-outline modal-btn" bindtap="closeTempNicknameModal">取消</button>
+        <button class="btn-primary modal-btn" bindtap="confirmTempNickname">确定</button>
+      </view>
     </view>
   </view>
 </view>

@@ -226,6 +226,10 @@ const connect = (token) => {
         emit('readAck', data.data);
         break;
 
+      case 'tempNickname':
+        emit('tempNickname', data.data);
+        break;
+
       case 'unread':
         emit('unread', data.data);
         break;
@@ -284,13 +288,14 @@ const disconnect = () => {
   emit('stateChange', state);
 };
 
-const sendMessage = ({ receiverId, senderDynamicTag, content, postId }) => {
+const sendMessage = ({ receiverId, senderDynamicTag, content, postId, tempNickname }) => {
   return send({
     type: 'message',
     receiverId,
     senderDynamicTag,
     content,
-    postId: postId || undefined
+    postId: postId || undefined,
+    tempNickname: tempNickname || undefined
   });
 };
 
@@ -301,6 +306,14 @@ const sendReadAck = (conversationId) => {
   });
 };
 
+const sendTempNickname = ({ otherUserId, tempNickname }) => {
+  return send({
+    type: 'temp_nickname',
+    otherUserId,
+    tempNickname
+  });
+};
+
 module.exports = {
   STATE,
   connect,
@@ -308,6 +321,7 @@ module.exports = {
   send,
   sendMessage,
   sendReadAck,
+  sendTempNickname,
   on,
   off,
   getState,

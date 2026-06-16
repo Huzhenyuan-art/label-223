@@ -9,6 +9,9 @@ Page({
     conversationId: '',
     otherUserId: '',
     displayName: '同频回声',
+    myTempNickname: '',
+    tempNicknameInput: '',
+    showTempNicknameModal: false,
     reveal: null,
     senderDynamicTag: '#海浪信使',
     content: '',
@@ -25,7 +28,7 @@ Page({
     this.setData({
       conversationId: options.conversationId || '',
       otherUserId: options.otherUserId || '',
-      displayName: options.revealed === '1' ? decodeURIComponent(options.name || '同频回声') : '同频回声'
+      displayName: decodeURIComponent(options.name || '同频回声')
     });
 
     this._bindSocketEvents();
@@ -110,20 +113,48 @@ Page({
       this.setData({ list });
     };
 
-    this._socketHandlers = { onMessage, onStateChange, onReveal, onReadAck };
+    const onTempNickname = (data) => {
+      if (!data || data.conversationId !== this.data.conversationId) return;
+      const userId = wx.getStorageSync('userId');
+      const isMine = data.fromUserId === userId;
+
+      if (!isMine) {
+        this.setData({ displayName: data.tempNickname });
+        const list = this.data.list.map((item) => {
+          if (!item.mine && item.sender) {
+            return { ...item, sender: { ...item.sender, nickname: data.tempNickname } };
+          }
+          return item;
+        });
+        this.setData({ list });
+      }
+
+      if (this.data.reveal) {
+        this.setData({
+          reveal: {
+            ...this.data.reveal,
+            tempNicknames: data.tempNicknames || this.data.reveal.tempNicknames
+          }
+        });
+      }
+    };
+
+    this._socketHandlers = { onMessage, onStateChange, onReveal, onReadAck, onTempNickname };
 
     socket.on('message', onMessage);
     socket.on('stateChange', onStateChange);
     socket.on('reveal', onReveal);
     socket.on('readAck', onReadAck);
+    socket.on('tempNickname', onTempNickname);
   },
 
   _unbindSocketEvents() {
-    const { onMessage, onStateChange, onReveal, onReadAck } = this._socketHandlers;
+    const { onMessage, onStateChange, onReveal, onReadAck, onTempNickname } = this._socketHandlers;
     socket.off('message', onMessage);
     socket.off('stateChange', onStateChange);
     socket.off('reveal', onReveal);
     socket.off('readAck', onReadAck);
+    socket.off('tempNickname', onTempNickname);
     this._socketHandlers = {};
   },
 
@@ -157,14 +188,21 @@ Page({
       }));
 
       const last = list[list.length - 1];
+      const userId = wx.getStorageSync('userId');
+      const otherTempName = data.reveal?.tempNicknames?.[this.data.otherUserId] || '同频回声';
+      const myTempName = data.reveal?.tempNicknames?.[userId] || '';
+
       this.setData({
         list,
         reveal: data.reveal,
-        displayName: data.reveal?.revealed ? decodeURIComponent(this.options.name || '同频回声') : '同频回声',
+        displayName: data.reveal?.revealed
+          ? decodeURIComponent(this.options.name || '同频回声')
+          : otherTempName,
+        myTempNickname: myTempName,
         scrollAnchor: last ? `msg-${last._id}` : ''
       });
 
-      if (data.reveal?.revealed && this.data.displayName === '同频回声') {
+      if (data.reveal?.revealed) {
         try {
           const publicInfo = await request.get(`${config.API.USER_PUBLIC_PREFIX}/${this.data.otherUserId}`);
           if (publicInfo?.profile?.nickname) {
@@ -201,7 +239,8 @@ Page({
     const wsSent = socket.sendMessage({
       receiverId: this.data.otherUserId,
       senderDynamicTag,
-      content
+      content,
+      tempNickname: this.data.myTempNickname || undefined
     });
 
     if (wsSent) {
@@ -214,7 +253,8 @@ Page({
       await request.post(config.API.SEND_MESSAGE, {
         receiverId: this.data.otherUserId,
         senderDynamicTag,
-        content
+        content,
+        tempNickname: this.data.myTempNickname || undefined
       });
       this.setData({ content: '' });
       this.loadMessages();
@@ -247,5 +287,65 @@ Page({
     wx.navigateTo({
       url: `/pages/publicProfile/publicProfile?id=${this.data.otherUserId}`
     });
+  },
+
+  openTempNicknameModal() {
+    if (this.data.reveal?.revealed) {
+      wx.showToast({ title: '身份已揭示，无需设置临时昵称', icon: 'none' });
+      return;
+    }
+    this.setData({
+      tempNicknameInput: this.data.myTempNickname,
+      showTempNicknameModal: true
+    });
+  },
+
+  closeTempNicknameModal() {
+    this.setData({ showTempNicknameModal: false });
+  },
+
+  bindTempNicknameInput(e) {
+    this.setData({ tempNicknameInput: e.detail.value });
+  },
+
+  async confirmTempNickname() {
+    const nickname = this.data.tempNicknameInput.trim();
+    if (!nickname) {
+      wx.showToast({ title: '请输入临时昵称', icon: 'none' });
+      return;
+    }
+    if (nickname.length > 24) {
+      wx.showToast({ title: '昵称最多24个字符', icon: 'none' });
+      return;
+    }
+
+    const wsSent = socket.sendTempNickname({
+      otherUserId: this.data.otherUserId,
+      tempNickname: nickname
+    });
+
+    if (wsSent) {
+      this.setData({
+        myTempNickname: nickname,
+        showTempNicknameModal: false
+      });
+      wx.showToast({ title: '临时昵称已设置', icon: 'success' });
+      return;
+    }
+
+    try {
+      const result = await request.post(config.API.SET_TEMP_NICKNAME, {
+        otherUserId: this.data.otherUserId,
+        tempNickname: nickname
+      });
+      this.setData({
+        myTempNickname: result.tempNickname,
+        reveal: result.reveal,
+        showTempNicknameModal: false
+      });
+      wx.showToast({ title: '临时昵称已设置', icon: 'success' });
+    } catch (error) {
+      showFriendlyError(error, '设置失败，请稍后重试');
+    }
   }
 });

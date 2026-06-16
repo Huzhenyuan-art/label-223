@@ -33,6 +33,7 @@ Page({
     echoTagsInput: '延展,思考',
     waveTag: '#同频访客',
     waveContent: '',
+    waveTempNickname: '',
     waveSending: false,
     loading: false,
     resonanceList: [],
@@ -312,7 +313,7 @@ Page({
   },
 
   async sendPrivateWave() {
-    const { post, waveTag } = this.data;
+    const { post, waveTag, waveTempNickname } = this.data;
     const content = this.data.waveContent.trim();
 
     if (!post?.author?._id) {
@@ -334,17 +335,28 @@ Page({
       ? waveTag
       : `#${waveTag}`;
 
+    const tempNickname = waveTempNickname.trim();
+    if (tempNickname && tempNickname.length > 24) {
+      wx.showToast({ title: '临时昵称最多24个字符', icon: 'none' });
+      return;
+    }
+
     this.setData({ waveSending: true });
 
     try {
-      await request.post(config.API.SEND_MESSAGE, {
+      const payload = {
         receiverId: post.author._id,
         senderDynamicTag,
         content,
         postId: this.data.id
-      });
+      };
+      if (tempNickname) {
+        payload.tempNickname = tempNickname;
+      }
 
-      this.setData({ waveContent: '' });
+      await request.post(config.API.SEND_MESSAGE, payload);
+
+      this.setData({ waveContent: '', waveTempNickname: '' });
       wx.showToast({ title: '私密海浪已发出', icon: 'success' });
 
       const userId = wx.getStorageSync('userId');
@@ -352,7 +364,7 @@ Page({
       const conversationId = `${ids[0]}_${ids[1]}`;
 
       wx.navigateTo({
-        url: `/pages/chat/chat?conversationId=${conversationId}&otherUserId=${post.author._id}&name=${encodeURIComponent('同频回声')}&revealed=0`
+        url: `/pages/chat/chat?conversationId=${conversationId}&otherUserId=${post.author._id}&name=${encodeURIComponent(tempNickname || '同频回声')}&revealed=0`
       });
     } catch (error) {
       showFriendlyError(error, '私密海浪发送失败，请稍后重试');

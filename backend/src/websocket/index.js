@@ -155,6 +155,36 @@ const setupWebSocket = (server) => {
             { path: 'sourcePost', select: 'title dynamicTag' }
           ]);
 
+          if (msg.tempNickname && typeof msg.tempNickname === 'string') {
+            const trimmed = msg.tempNickname.trim().slice(0, 24);
+            if (trimmed) {
+              const nicknameAudit = await auditMultipleFields({
+                fieldsMap: { tempNickname: trimmed },
+                type: 'tempNickname',
+                userId: authedUserId,
+                targetId: conversationId
+              });
+              if (!nicknameAudit.blocked) {
+                const finalNickname = (nicknameAudit.maskedFieldsMap?.tempNickname || trimmed).slice(0, 24);
+                await RevealDecision.findOneAndUpdate(
+                  { conversationId },
+                  {
+                    $setOnInsert: {
+                      users: [authedUserId, msg.receiverId],
+                      revealed: false,
+                      unlockedAt: null,
+                      agreedBy: []
+                    },
+                    $set: {
+                      [`tempNicknames.${authedUserId}`]: finalNickname
+                    }
+                  },
+                  { upsert: true, new: true }
+                );
+              }
+            }
+          }
+
           const payload = {
             type: 'message',
             data: created,
@@ -225,6 +255,91 @@ const setupWebSocket = (server) => {
 
           pushUnread(authedUserId).catch((e) => logger.error(`Push unread on read_ack error: ${e.message}`));
           pushUnread(otherUserId).catch((e) => logger.error(`Push unread on read_ack other error: ${e.message}`));
+
+          return;
+        }
+
+        if (msg.type === 'temp_nickname') {
+          if (!authedUserId) {
+            ws.send(JSON.stringify({ type: 'error', message: 'Unauthorized websocket' }));
+            return;
+          }
+
+          const otherUserId = msg.otherUserId;
+          if (!otherUserId || authedUserId === otherUserId.toString()) {
+            ws.send(JSON.stringify({ type: 'error', message: 'Invalid target user' }));
+            return;
+          }
+
+          const otherUser = await User.findById(otherUserId);
+          if (!otherUser) {
+            ws.send(JSON.stringify({ type: 'error', message: 'Other user not found' }));
+            return;
+          }
+
+          const trimmed = (msg.tempNickname || '').toString().trim().slice(0, 24);
+          if (!trimmed) {
+            ws.send(JSON.stringify({ type: 'error', message: 'tempNickname cannot be empty' }));
+            return;
+          }
+
+          const conversationId = Message.generateConversationId(authedUserId, otherUserId);
+          const decision = await RevealDecision.findOne({ conversationId });
+
+          if (decision && decision.revealed) {
+            ws.send(JSON.stringify({ type: 'error', message: '身份已揭示，无需设置临时昵称' }));
+            return;
+          }
+
+          const auditResult = await auditMultipleFields({
+            fieldsMap: { tempNickname: trimmed },
+            type: 'tempNickname',
+            userId: authedUserId,
+            targetId: conversationId
+          });
+
+          if (auditResult.blocked) {
+            ws.send(JSON.stringify({
+              type: 'error',
+              message: '临时昵称包含违规信息',
+              matchedWords: auditResult.matchedWords
+            }));
+            return;
+          }
+
+          const finalNickname = (auditResult.maskedFieldsMap?.tempNickname || trimmed).slice(0, 24);
+
+          const updated = await RevealDecision.findOneAndUpdate(
+            { conversationId },
+            {
+              $setOnInsert: {
+                users: [authedUserId, otherUserId],
+                revealed: false,
+                unlockedAt: null,
+                agreedBy: []
+              },
+              $set: {
+                [`tempNicknames.${authedUserId}`]: finalNickname
+              }
+            },
+            { upsert: true, new: true }
+          ).lean();
+
+          const tempNicknamesRaw = updated?.tempNicknames instanceof Map
+            ? Object.fromEntries(updated.tempNicknames)
+            : updated?.tempNicknames || {};
+
+          const nicknamePayload = {
+            type: 'tempNickname',
+            data: {
+              conversationId,
+              fromUserId: authedUserId,
+              tempNickname: finalNickname,
+              tempNicknames: { ...tempNicknamesRaw, [authedUserId]: finalNickname }
+            }
+          };
+          ws.send(JSON.stringify(nicknamePayload));
+          sendToUser(otherUserId.toString(), nicknamePayload);
 
           return;
         }

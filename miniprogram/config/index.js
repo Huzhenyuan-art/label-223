@@ -30,6 +30,7 @@ const config = {
     SEND_MESSAGE: '/api/messages/send',
     REQUEST_REVEAL: '/api/messages/conversations/reveal',
     UNREAD_COUNT: '/api/messages/unread',
+    SET_TEMP_NICKNAME: '/api/messages/temp-nickname',
 
     RESONANCE_NOTIFICATIONS: '/api/users/me/resonance-notifications',
     RESONANCE_NOTIFICATIONS_UNREAD: '/api/users/me/resonance-notifications/unread-count',

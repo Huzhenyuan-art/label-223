@@ -59,25 +59,31 @@ Page({
       this.loadAll();
     };
 
+    const onTempNickname = () => {
+      this.loadAll();
+    };
+
     const onUnread = (data) => {
       if (!data) return;
       this.setData({ unreadCount: data.total || 0 });
       this._applyConversationUnreads(data.conversations || {});
     };
 
-    this._socketHandlers = { onMessage, onReadAck, onReveal, onUnread };
+    this._socketHandlers = { onMessage, onReadAck, onReveal, onTempNickname, onUnread };
 
     socket.on('message', onMessage);
     socket.on('readAck', onReadAck);
     socket.on('reveal', onReveal);
+    socket.on('tempNickname', onTempNickname);
     socket.on('unread', onUnread);
   },
 
   _unbindSocketEvents() {
-    const { onMessage, onReadAck, onReveal, onUnread } = this._socketHandlers;
+    const { onMessage, onReadAck, onReveal, onTempNickname, onUnread } = this._socketHandlers;
     socket.off('message', onMessage);
     socket.off('readAck', onReadAck);
     socket.off('reveal', onReveal);
+    socket.off('tempNickname', onTempNickname);
     socket.off('unread', onUnread);
     this._socketHandlers = {};
   },
@@ -95,7 +101,7 @@ Page({
         return {
           ...item,
           timeAgo: formatTimeAgo(item.lastMessage?.createdAt),
-          displayName: revealed ? (item.user?.nickname || '同频回声') : '同频回声',
+          displayName: item.user?.nickname || '同频回声',
           revealText: revealed
             ? '身份已揭示'
             : item.reveal?.eligible

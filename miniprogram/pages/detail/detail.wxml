@@ -59,7 +59,8 @@
     <view class="section-title">私密海浪</view>
     <view class="muted">对该内容产生深度共鸣后，可向作者发送动态标签私信。</view>
     <view wx:if="{{!post.isResonated}}" class="warn-text mt-12">请先点击“共鸣”，再发出第一条私密海浪。</view>
-    <input class="input mt-16 mb-16" placeholder="你的私信动态标签" value="{{waveTag}}" data-key="waveTag" bindinput="bindField" />
+    <input class="input mt-16 mb-12" placeholder="你的私信动态标签" value="{{waveTag}}" data-key="waveTag" bindinput="bindField" />
+    <input class="input mb-12" placeholder="本轮临时昵称（可选，对方看到的称呼）" value="{{waveTempNickname}}" data-key="waveTempNickname" maxlength="24" bindinput="bindField" />
     <textarea class="textarea" placeholder="写下你想继续交流的内容" value="{{waveContent}}" data-key="waveContent" bindinput="bindField" />
     <button class="btn-primary mt-16" bindtap="sendPrivateWave" disabled="{{!post.isResonated}}" loading="{{waveSending}}">发送私密海浪</button>
   </view>

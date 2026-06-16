@@ -81,6 +81,13 @@ const sendMessageValidator = [
   body('senderDynamicTag').notEmpty().isString().trim().matches(TAG_REGEX),
   body('content').notEmpty().isString().trim().isLength({ min: 1, max: 500 }),
   body('postId').optional().isMongoId(),
+  body('tempNickname').optional().isString().trim().isLength({ min: 1, max: 24 }),
+  validate
+];
+
+const tempNicknameValidator = [
+  body('otherUserId').notEmpty().isMongoId(),
+  body('tempNickname').notEmpty().isString().trim().isLength({ min: 1, max: 24 }),
   validate
 ];
 
@@ -171,6 +178,7 @@ module.exports = {
   commentValidator,
   commentReplyValidator,
   sendMessageValidator,
+  tempNicknameValidator,
   revealValidator,
   tagSkinValidator,
   createPrivateGroupValidator,

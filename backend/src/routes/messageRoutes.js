@@ -1,7 +1,7 @@
 const express = require('express');
 const messageController = require('../controllers/messageController');
 const { auth } = require('../middlewares/auth');
-const { sendMessageValidator, revealValidator, paginationValidator } = require('../middlewares/validator');
+const { sendMessageValidator, revealValidator, paginationValidator, tempNicknameValidator } = require('../middlewares/validator');
 
 const router = express.Router();
 
@@ -12,5 +12,6 @@ router.get('/conversations/:conversationId/messages', paginationValidator, messa
 router.post('/send', sendMessageValidator, messageController.sendMessage);
 router.post('/conversations/reveal', revealValidator, messageController.requestReveal);
 router.get('/unread', messageController.getUnreadCount);
+router.post('/temp-nickname', tempNicknameValidator, messageController.setTempNickname);
 
 module.exports = router;

@@ -19,6 +19,14 @@ const getRevealStatus = async (conversationId, userId, otherUserId) => {
 
   const agreedBy = new Set((decision?.agreedBy || []).map((id) => id.toString()));
 
+  const tempNicknamesRaw = decision?.tempNicknames instanceof Map
+    ? Object.fromEntries(decision.tempNicknames)
+    : decision?.tempNicknames || {};
+  const tempNicknames = {};
+  Object.keys(tempNicknamesRaw).forEach((k) => {
+    tempNicknames[k] = tempNicknamesRaw[k];
+  });
+
   return {
     eligible,
     myCount,
@@ -26,8 +34,16 @@ const getRevealStatus = async (conversationId, userId, otherUserId) => {
     myAgreed: agreedBy.has(userId.toString()),
     otherAgreed: agreedBy.has(otherUserId.toString()),
     revealed: Boolean(decision?.revealed),
-    unlockedAt: decision?.unlockedAt || null
+    unlockedAt: decision?.unlockedAt || null,
+    tempNicknames
   };
+};
+
+const getOtherDisplayName = (reveal, otherUserId, fallback = '同频回声') => {
+  if (reveal.revealed) {
+    return null;
+  }
+  return reveal.tempNicknames?.[otherUserId.toString()] || fallback;
 };
 
 exports.getConversations = async (req, res) => {
@@ -71,6 +87,7 @@ exports.getConversations = async (req, res) => {
         const otherUser = await User.findById(otherUserId).select('nickname avatar').lean();
         const reveal = await getRevealStatus(item._id, userId, otherUserId);
 
+        const otherDisplayName = getOtherDisplayName(reveal, otherUserId);
         const userView = reveal.revealed
           ? {
             _id: otherUserId,
@@ -79,7 +96,7 @@ exports.getConversations = async (req, res) => {
           }
           : {
             _id: otherUserId,
-            nickname: '同频回声',
+            nickname: otherDisplayName || '同频回声',
             avatar: ''
           };
 
@@ -132,6 +149,7 @@ exports.getConversationMessages = async (req, res) => {
     const otherUserId = idA === userId ? idB : idA;
     const reveal = await getRevealStatus(conversationId, req.userId, otherUserId);
 
+    const otherTempName = reveal.tempNicknames?.[otherUserId] || '同频回声';
     const maskedList = reveal.revealed
       ? list
       : list.map((item) => {
@@ -145,10 +163,10 @@ exports.getConversationMessages = async (req, res) => {
 
         const maskedSender = senderId === userId
           ? item.sender
-          : { ...item.sender, nickname: '同频回声', avatar: '' };
+          : { ...item.sender, nickname: otherTempName, avatar: '' };
         const maskedReceiver = receiverId === userId
           ? item.receiver
-          : { ...item.receiver, nickname: '同频回声', avatar: '' };
+          : { ...item.receiver, nickname: otherTempName, avatar: '' };
 
         return {
           ...item,
@@ -173,7 +191,7 @@ exports.getConversationMessages = async (req, res) => {
 exports.sendMessage = async (req, res) => {
   try {
     const senderId = req.userId;
-    const { receiverId, senderDynamicTag, content, postId } = req.body;
+    const { receiverId, senderDynamicTag, content, postId, tempNickname } = req.body;
 
     if (senderId.toString() === receiverId) {
       return res.status(400).json({ code: 1, message: 'Cannot message yourself' });
@@ -264,6 +282,27 @@ exports.sendMessage = async (req, res) => {
       { path: 'receiver', select: 'nickname avatar' },
       { path: 'sourcePost', select: 'title dynamicTag' }
     ]);
+
+    if (tempNickname && typeof tempNickname === 'string') {
+      const trimmed = tempNickname.trim().slice(0, 24);
+      if (trimmed) {
+        await RevealDecision.findOneAndUpdate(
+          { conversationId },
+          {
+            $setOnInsert: {
+              users: [senderId, receiverId],
+              revealed: false,
+              unlockedAt: null,
+              agreedBy: []
+            },
+            $set: {
+              [`tempNicknames.${senderId.toString()}`]: trimmed
+            }
+          },
+          { upsert: true, new: true }
+        );
+      }
+    }
 
     logger.info(`Message sent: ${message._id}, auditAction: ${auditResult.action}`);
 
@@ -356,6 +395,98 @@ exports.getUnreadCount = async (req, res) => {
     return res.json({ code: 0, data: { count } });
   } catch (error) {
     logger.error(`Get unread count error: ${error.message}`);
+    return res.status(500).json({ code: 1, message: 'Server error' });
+  }
+};
+
+exports.setTempNickname = async (req, res) => {
+  try {
+    const userId = req.userId;
+    const { otherUserId, tempNickname } = req.body;
+
+    if (!otherUserId) {
+      return res.status(400).json({ code: 1, message: 'otherUserId is required' });
+    }
+
+    if (userId.toString() === otherUserId.toString()) {
+      return res.status(400).json({ code: 1, message: 'Cannot set nickname for yourself' });
+    }
+
+    const trimmed = (tempNickname || '').toString().trim().slice(0, 24);
+    if (!trimmed) {
+      return res.status(400).json({ code: 1, message: 'tempNickname cannot be empty' });
+    }
+
+    const conversationId = Message.generateConversationId(userId, otherUserId);
+    const decision = await RevealDecision.findOne({ conversationId });
+
+    if (decision && decision.revealed) {
+      return res.status(400).json({
+        code: 1,
+        message: '身份已揭示，无需设置临时昵称'
+      });
+    }
+
+    const auditResult = await auditMultipleFields({
+      fieldsMap: { tempNickname: trimmed },
+      type: 'tempNickname',
+      userId,
+      targetId: conversationId
+    });
+
+    if (auditResult.blocked) {
+      return res.status(400).json({
+        code: 1,
+        message: '临时昵称包含违规信息',
+        data: { matchedWords: auditResult.matchedWords }
+      });
+    }
+
+    const finalNickname = (auditResult.maskedFieldsMap?.tempNickname || trimmed).slice(0, 24);
+
+    const updated = await RevealDecision.findOneAndUpdate(
+      { conversationId },
+      {
+        $setOnInsert: {
+          users: [userId, otherUserId],
+          revealed: false,
+          unlockedAt: null,
+          agreedBy: []
+        },
+        $set: {
+          [`tempNicknames.${userId.toString()}`]: finalNickname
+        }
+      },
+      { upsert: true, new: true }
+    ).lean();
+
+    const latest = await getRevealStatus(conversationId, userId, otherUserId);
+
+    const tempNicknamesRaw = updated?.tempNicknames instanceof Map
+      ? Object.fromEntries(updated.tempNicknames)
+      : updated?.tempNicknames || {};
+
+    const nicknamePayload = {
+      type: 'tempNickname',
+      data: {
+        conversationId,
+        fromUserId: userId.toString(),
+        tempNickname: finalNickname,
+        tempNicknames: { ...tempNicknamesRaw, [userId.toString()]: finalNickname }
+      }
+    };
+    sendToUser(userId.toString(), nicknamePayload);
+    sendToUser(otherUserId.toString(), nicknamePayload);
+
+    return res.json({
+      code: 0,
+      data: {
+        tempNickname: finalNickname,
+        reveal: latest
+      }
+    });
+  } catch (error) {
+    logger.error(`Set temp nickname error: ${error.message}`);
     return res.status(500).json({ code: 1, message: 'Server error' });
   }
 };

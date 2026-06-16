@@ -28,6 +28,11 @@ const revealDecisionSchema = new mongoose.Schema(
     unlockedAt: {
       type: Date,
       default: null
+    },
+    tempNicknames: {
+      type: Map,
+      of: String,
+      default: () => new Map()
     }
   },
   {
