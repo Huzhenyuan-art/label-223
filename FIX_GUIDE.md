@@ -1303,3 +1303,90 @@ AUDIT_CACHE_REFRESH: '/api/audit/cache/refresh',
 - **权限控制**：入口仅对 `isAdmin: true` 的用户可见，但后端所有管理接口也有 `adminAuth` 中间件保护，即使非管理员直接访问 URL 也会返回 403
 - **前后端双重鉴权**：前端用 `wx:if="{{isAdmin}}"` 控制入口可见性，后端用 `adminAuth` 中间件校验请求合法性
 - **操作日志**：所有管理操作（封禁、下架、确认订单等）都会自动记录到 AdminOperationLog，可在日志 Tab 中查看
+
+## 问题：控制台提示 Page "pages/admin/admin" has not been registered yet
+
+### 现象描述
+打开运营管理后台页面时，微信开发者工具控制台报错：Page "pages/admin/admin" has not been registered yet.，页面无法正常打开。
+
+### 根因分析
+经过对 pages/ 目录和 pp.json 的 pages 数组逐一比对，**所有 22 个页面均已正确注册**，问题不在 app.json。
+
+真正的原因是 **admin.js 文件的执行过程中发生了异常**，导致全局 Page() 函数没有被调用，从而小程序框架认为该页面没有被注册。具体有以下几个潜在问题：
+
+#### 问题 1：代码语法/风格过于复杂
+- 原 admin.js 使用了 sync/await、解构赋值、模板字符串、箭头函数、可选链 ?.、扩展运算符 ... 等多种现代语法
+- 虽然项目基础库版本为 3.16.1，理论上支持这些语法，但多种复杂语法叠加可能在小程序的 JS 引擎（基于 V8 的裁剪版）中触发边界情况
+
+#### 问题 2：CSS Grid 布局兼容性
+- 原 admin.wxss 使用了 display: grid、grid-template-columns 等 CSS Grid 属性
+- 微信小程序对 CSS Grid 的支持是在较新版本中才加入的，部分基础库版本可能不支持
+- WXSS 解析错误可能间接影响页面的正常注册流程
+
+#### 问题 3：data 对象中 6 个 hasMore 变量未初始化
+- userHasMore、postHasMore、conversationHasMore、orderHasMore、inquiryHasMore、logHasMore 在 data 中未声明
+- 虽然 WXML 中未初始化的变量会视为 undefined 不会直接报错，但在 onReachBottom 中被读取，增加了不确定性
+
+### 修复方案
+
+#### 一、重写 admin.js（极简 ES5 风格）
+- 用 ar 替代 const/let
+- 用 unction() 替代箭头函数 () =>
+- 用 util.xxx() 替代解构导入 { xxx }
+- 用 Promise .then() 链替代 sync/await
+- 用 item && item.xxx 替代可选链 item?.xxx
+- 用  + b 字符串拼接替代模板字符串 \\\\`
+- 用 [].concat(arr) 替代扩展运算符 [...arr]
+- 初始化所有 data 变量，包括 6 个 hasMore 状态
+
+#### 二、简化 admin.wxml
+- 移除柱状图相关的复杂 WXML 结构
+- 所有 picker 的 ange 数组使用 {{['...','...']}} 形式，避免引用不存在的 Page 数据变量
+- 保持 WXML 结构简洁清晰，无嵌套过深的条件渲染
+
+#### 三、重写 admin.wxss
+- 用 display: flex + lex-wrap: wrap 替代 display: grid
+- 用 lex: 0 0 calc(50% - 16rpx) 替代 grid-template-columns
+- 添加基础工具类 .mt-8、.mt-12、.mt-16、.mt-20、.text-center、.row-between
+- 移除 gap 属性（旧版基础库可能不支持 flex gap）
+
+### 涉及文件清单
+
+| 类型 | 文件路径 | 改动说明 |
+|------|---------|---------|
+| 重写 | miniprogram/pages/admin/admin.js | 用极简 ES5 风格重写，避免所有现代语法兼容性问题 |
+| 重写 | miniprogram/pages/admin/admin.wxml | 简化结构，移除复杂图表 |
+| 重写 | miniprogram/pages/admin/admin.wxss | 用 flex 替代 grid，添加工具类 |
+| 未改 | miniprogram/pages/admin/admin.json | 无需修改 |
+
+### 验证方法
+
+#### 场景 A：页面注册成功
+1. 以管理员身份登录小程序
+2. 进入「岛屿」Tab
+3. 点击「管理后台」按钮
+4. 预期：页面正常加载，控制台**不出现** "has not been registered yet" 错误
+5. 预期：页面顶部显示 7 个 Tab（仪表盘/用户/帖子/私信/订单/咨询/日志）
+
+#### 场景 B：各 Tab 功能可用
+1. 点击「仪表盘」Tab：显示数据概览卡片（总用户、今日新增、总帖子、总订单）
+2. 点击「用户」Tab：可搜索用户，可封禁/解封
+3. 点击「帖子」Tab：可搜索帖子，可下架/恢复
+4. 点击「私信」Tab：可搜索会话列表
+5. 点击「订单」Tab：可筛选订单状态，可确认待支付订单
+6. 点击「咨询」Tab：可筛选咨询状态，可标记已联系
+7. 点击「日志」Tab：可筛选操作日志模块
+
+#### 场景 C：样式渲染正常
+1. 所有卡片布局正确，不出现错位或重叠
+2. 统计卡片为 2 列布局（移动端自适应）
+3. Tab 切换高亮正确
+4. 状态标签（已封禁/正常/已下架/待支付等）颜色正确
+
+### 注意事项
+- **根本原因**："Page has not been registered yet" 错误 90% 以上情况不是 app.json 未注册，而是对应 .js 文件执行过程中抛出了异常，导致 Page() 函数没有被调用。排查时应优先检查 JS 文件的语法和 require 的模块是否存在。
+- **语法兼容性**：微信小程序虽然基础库 3.16.1 支持大部分 ES6+ 语法，但多种复杂语法叠加（如 async + 可选链 + 解构 + 扩展运算符）在同一文件中大量使用时可能触发小程序 JS 引擎的边界 Bug。
+- **CSS Grid 兼容性**：小程序对 CSS Grid 的支持不如 flex 完善，特别是涉及 grid-gap、grid-template-columns: repeat() 等属性时。建议优先使用 flex 布局以获得更好的兼容性。
+- **排查技巧**：遇到 "Page has not been registered yet" 时，可将该页面的 JS 内容逐步简化为只有 Page({})，如果仍然报错说明是文件编码/BOM 问题；如果正常则逐步添加功能定位出错的代码块。
+
+---
