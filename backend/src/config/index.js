@@ -40,5 +40,17 @@ module.exports = {
       durationDays: 365,
       features: ['标签皮肤', '数据洞察报告', '私人小组创建权', '优先话题曝光', '线下沙龙优先席位']
     }
+  },
+  recommendation: {
+    enabled: process.env.RECOMMENDATION_ENABLED !== 'false',
+    defaultConfigName: 'default',
+    fallbackToLegacy: process.env.RECOMMENDATION_FALLBACK !== 'false',
+    maxBatchSize: 100,
+    scheduler: {
+      enabled: process.env.RECOMMENDATION_SCHEDULER_ENABLED !== 'false',
+      tagPrecomputeCron: process.env.TAG_PRECOMPUTE_CRON || '*/30 * * * *',
+      hotSnapshotCron: process.env.HOT_SNAPSHOT_CRON || '*/15 * * * *',
+      cacheCleanupCron: process.env.CACHE_CLEANUP_CRON || '0 * * * *'
+    }
   }
 };

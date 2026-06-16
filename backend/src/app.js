@@ -11,6 +11,7 @@ const logger = require('./utils/logger');
 const setupRoutes = require('./routes');
 const { setupWebSocket } = require('./websocket');
 const { ensureDir } = require('./utils/storage');
+const recommendation = require('./services/recommendation');
 
 const app = express();
 const server = http.createServer(app);
@@ -60,6 +61,8 @@ const start = async () => {
     });
     logger.info('MongoDB connected');
 
+    await recommendation.initialize();
+
     setupWebSocket(server);
 
     server.listen(config.port, '0.0.0.0', () => {
@@ -73,6 +76,7 @@ const start = async () => {
 
 process.on('SIGTERM', async () => {
   logger.info('SIGTERM received, shutting down');
+  recommendation.shutdown();
   await mongoose.connection.close();
   server.close(() => process.exit(0));
 });

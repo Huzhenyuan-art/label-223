@@ -14,6 +14,10 @@ const PrivateGroupPost = require('./PrivateGroupPost');
 const ResonanceNotification = require('./ResonanceNotification');
 const SensitiveWord = require('./SensitiveWord');
 const AuditLog = require('./AuditLog');
+const UserInterestTags = require('./UserInterestTags');
+const HotListSnapshot = require('./HotListSnapshot');
+const RecommendationCache = require('./RecommendationCache');
+const RecommendationConfig = require('./RecommendationConfig');
 
 module.exports = {
   User,
@@ -31,5 +35,9 @@ module.exports = {
   PrivateGroupPost,
   ResonanceNotification,
   SensitiveWord,
-  AuditLog
+  AuditLog,
+  UserInterestTags,
+  HotListSnapshot,
+  RecommendationCache,
+  RecommendationConfig
 };

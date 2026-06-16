@@ -69,8 +69,20 @@ const requirePremium = (req, res, next) => {
   return next();
 };
 
+const requireAdmin = (req, res, next) => {
+  const user = req.user;
+  if (!user || !user.isAdmin) {
+    return res.status(403).json({
+      code: 3,
+      message: '需要管理员权限'
+    });
+  }
+  return next();
+};
+
 module.exports = {
   auth,
   optionalAuth,
-  requirePremium
+  requirePremium,
+  requireAdmin
 };

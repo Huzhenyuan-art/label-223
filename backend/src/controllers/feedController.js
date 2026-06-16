@@ -1,7 +1,7 @@
-const mongoose = require('mongoose');
 const { Post, User, Resonance, Comment } = require('../models');
 const logger = require('../utils/logger');
 const config = require('../config');
+const recommendation = require('../services/recommendation');
 
 const sanitizeTags = (tags) => {
   if (!tags) {
@@ -18,55 +18,30 @@ const sanitizeTags = (tags) => {
 
 const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-const getUserTopTags = async (userId) => {
-  const objectId = new mongoose.Types.ObjectId(userId);
-  const [authoredTags, resonatedTags] = await Promise.all([
-    Post.aggregate([
-      { $match: { author: objectId } },
-      { $unwind: '$tags' },
-      { $group: { _id: '$tags', score: { $sum: 3 } } }
-    ]),
-    Resonance.aggregate([
-      { $match: { user: objectId } },
-      {
-        $lookup: {
-          from: 'posts',
-          localField: 'post',
-          foreignField: '_id',
-          as: 'postDoc'
-        }
-      },
-      { $unwind: '$postDoc' },
-      { $unwind: '$postDoc.tags' },
-      { $group: { _id: '$postDoc.tags', score: { $sum: 2 } } }
-    ])
-  ]);
-
-  const map = new Map();
-  [...authoredTags, ...resonatedTags].forEach((item) => {
-    map.set(item._id, (map.get(item._id) || 0) + item.score);
-  });
-
-  return [...map.entries()]
-    .sort((a, b) => b[1] - a[1])
-    .map(([tag]) => tag)
-    .slice(0, 10);
-};
-
 const attachInteractionState = async (posts, userId) => {
   if (!userId || !posts.length) {
-    return posts.map((post) => ({ ...post, isResonated: false, isFavorited: false }));
+    return posts.map((post) => ({
+      ...post,
+      isResonated: false,
+      isFavorited: false
+    }));
   }
 
   const ids = posts.map((item) => item._id);
 
   const [resonances, user] = await Promise.all([
-    Resonance.find({ user: userId, post: { $in: ids } }).select('post').lean(),
+    Resonance.find({ user: userId, post: { $in: ids } })
+      .select('post')
+      .lean(),
     User.findById(userId).select('favoritePosts').lean()
   ]);
 
-  const resonanceSet = new Set(resonances.map((item) => item.post.toString()));
-  const favoriteSet = new Set((user?.favoritePosts || []).map((item) => item.toString()));
+  const resonanceSet = new Set(
+    resonances.map((item) => item.post.toString())
+  );
+  const favoriteSet = new Set(
+    (user?.favoritePosts || []).map((item) => item.toString())
+  );
 
   return posts.map((post) => ({
     ...post,
@@ -75,187 +50,220 @@ const attachInteractionState = async (posts, userId) => {
   }));
 };
 
-const rankPosts = (posts, mode, preferredTags) => {
-  const now = Date.now();
-  const preferredSet = new Set(preferredTags);
+const getLegacyOceanFlow = async (req, res) => {
+  const page = Number(req.query.page || 1);
+  const limit = Number(req.query.limit || 20);
+  const mode = req.query.mode || 'recommend';
+  const tags = sanitizeTags(req.query.tags);
+  const keyword = (req.query.keyword || '').trim();
 
-  const ranked = posts.map((post) => {
-    const ageHours = Math.max((now - new Date(post.createdAt).getTime()) / 3600000, 1);
-    const base = post.resonanceCount * 3 + post.commentCount * 2 + post.superEchoCount * 4 + 1;
-    const tagMatch = post.tags.reduce((acc, tag) => (preferredSet.has(tag) ? acc + 1 : acc), 0);
-
-    let score = base;
-    if (mode === 'recommend') {
-      score += tagMatch * 6;
-      score += Math.max(0, 24 - ageHours) * 0.2;
-    } else if (mode === 'hot') {
-      score = base / ageHours + tagMatch;
-    }
-
-    return { ...post, score };
-  });
-
-  if (mode === 'latest') {
-    return ranked.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  const filter = {};
+  if (tags.length > 0) {
+    filter.tags = { $in: tags };
+  }
+  if (keyword) {
+    const regex = new RegExp(escapeRegex(keyword), 'i');
+    filter.$or = [
+      { title: regex },
+      { contentText: regex },
+      { dynamicTag: regex }
+    ];
   }
 
-  return ranked.sort((a, b) => b.score - a.score || new Date(b.createdAt) - new Date(a.createdAt));
+  const basePosts = await Post.find(filter)
+    .populate('author', 'nickname avatar')
+    .sort({ createdAt: -1 })
+    .limit(120)
+    .lean();
+
+  const preferredTags = req.userId
+    ? await recommendation.tagPrecomputeService.getUserTopTags(
+        req.userId,
+        true
+      )
+    : [];
+
+  const ranked = await recommendation.rankingService.rankPostsWithConfig(
+    basePosts,
+    mode,
+    preferredTags
+  );
+
+  const start = (page - 1) * limit;
+  const paged = ranked.slice(start, start + limit);
+  const enriched = await attachInteractionState(paged, req.userId);
+
+  return res.json({
+    code: 0,
+    data: {
+      mode,
+      preferredTags,
+      list: enriched,
+      pagination: {
+        page,
+        limit,
+        total: ranked.length,
+        pages: Math.ceil(ranked.length / limit)
+      },
+      legacy: true
+    }
+  });
 };
 
 exports.getOceanFlow = async (req, res) => {
   try {
-    const page = Number(req.query.page || 1);
-    const limit = Number(req.query.limit || 20);
-    const mode = req.query.mode || 'recommend';
-    const tags = sanitizeTags(req.query.tags);
-    const keyword = (req.query.keyword || '').trim();
-
-    const filter = {};
-    if (tags.length > 0) {
-      filter.tags = { $in: tags };
-    }
-    if (keyword) {
-      const regex = new RegExp(escapeRegex(keyword), 'i');
-      filter.$or = [{ title: regex }, { contentText: regex }, { dynamicTag: regex }];
+    if (!config.recommendation.enabled) {
+      return await getLegacyOceanFlow(req, res);
     }
 
-    const basePosts = await Post.find(filter)
-      .populate('author', 'nickname avatar')
-      .sort({ createdAt: -1 })
-      .limit(120)
-      .lean();
-
-    const preferredTags = req.userId ? await getUserTopTags(req.userId) : [];
-    const ranked = rankPosts(basePosts, mode, preferredTags);
-
-    const start = (page - 1) * limit;
-    const paged = ranked.slice(start, start + limit);
-    const enriched = await attachInteractionState(paged, req.userId);
+    const result = await recommendation.getOceanFlow({
+      page: Number(req.query.page || 1),
+      limit: Number(req.query.limit || 20),
+      mode: req.query.mode || 'recommend',
+      tags: req.query.tags,
+      keyword: req.query.keyword,
+      userId: req.userId
+    });
 
     return res.json({
       code: 0,
       data: {
-        mode,
-        preferredTags,
-        list: enriched,
-        pagination: {
-          page,
-          limit,
-          total: ranked.length,
-          pages: Math.ceil(ranked.length / limit)
-        }
+        mode: result.mode,
+        preferredTags: result.preferredTags,
+        list: result.list,
+        pagination: result.pagination,
+        fromCache: result.fromCache
       }
     });
   } catch (error) {
     logger.error(`Get ocean flow error: ${error.message}`);
+
+    if (config.recommendation.fallbackToLegacy) {
+      logger.warn('Falling back to legacy ocean flow implementation');
+      try {
+        return await getLegacyOceanFlow(req, res);
+      } catch (legacyError) {
+        logger.error(
+          `Legacy ocean flow also failed: ${legacyError.message}`
+        );
+      }
+    }
+
     return res.status(500).json({ code: 1, message: 'Server error' });
   }
 };
 
+const getLegacyHotTags = async (req, res) => {
+  const oneHourAgo = new Date(Date.now() - 3600000);
+
+  const buildPipeline = (startAt) => [
+    { $match: { createdAt: { $gte: startAt } } },
+    {
+      $project: {
+        tags: 1,
+        heat: {
+          $add: [
+            1,
+            '$resonanceCount',
+            '$commentCount',
+            { $multiply: ['$superEchoCount', 2] }
+          ]
+        }
+      }
+    },
+    { $unwind: '$tags' },
+    {
+      $group: {
+        _id: '$tags',
+        postCount: { $sum: 1 },
+        heat: { $sum: '$heat' }
+      }
+    },
+    { $sort: { heat: -1, postCount: -1 } },
+    { $limit: 12 }
+  ];
+
+  let tags = await Post.aggregate(buildPipeline(oneHourAgo));
+  let window = '1h';
+
+  if (!tags.length) {
+    tags = await Post.aggregate(
+      buildPipeline(new Date(Date.now() - 24 * 3600000))
+    );
+    window = '24h';
+  }
+
+  const nextUpdateAt = new Date(Math.ceil(Date.now() / 3600000) * 3600000);
+
+  return res.json({
+    code: 0,
+    data: {
+      window,
+      nextUpdateAt: nextUpdateAt.toISOString(),
+      list: tags.map((item, index) => ({
+        rank: index + 1,
+        tag: item._id,
+        postCount: item.postCount,
+        heat: item.heat
+      })),
+      legacy: true
+    }
+  });
+};
+
 exports.getHotTags = async (req, res) => {
   try {
-    const oneHourAgo = new Date(Date.now() - 3600000);
-
-    const buildPipeline = (startAt) => [
-      { $match: { createdAt: { $gte: startAt } } },
-      {
-        $project: {
-          tags: 1,
-          heat: {
-            $add: [
-              1,
-              '$resonanceCount',
-              '$commentCount',
-              { $multiply: ['$superEchoCount', 2] }
-            ]
-          }
-        }
-      },
-      { $unwind: '$tags' },
-      {
-        $group: {
-          _id: '$tags',
-          postCount: { $sum: 1 },
-          heat: { $sum: '$heat' }
-        }
-      },
-      { $sort: { heat: -1, postCount: -1 } },
-      { $limit: 12 }
-    ];
-
-    let tags = await Post.aggregate(buildPipeline(oneHourAgo));
-    let window = '1h';
-
-    if (!tags.length) {
-      tags = await Post.aggregate(buildPipeline(new Date(Date.now() - 24 * 3600000)));
-      window = '24h';
+    if (!config.recommendation.enabled) {
+      return await getLegacyHotTags(req, res);
     }
 
-    const nextUpdateAt = new Date(Math.ceil(Date.now() / 3600000) * 3600000);
+    const result = await recommendation.getHotTags('1h');
 
     return res.json({
       code: 0,
       data: {
-        window,
-        nextUpdateAt: nextUpdateAt.toISOString(),
-        list: tags.map((item, index) => ({
-          rank: index + 1,
-          tag: item._id,
-          postCount: item.postCount,
-          heat: item.heat
-        }))
+        window: result.window,
+        nextUpdateAt:
+          result.nextUpdateAt instanceof Date
+            ? result.nextUpdateAt.toISOString()
+            : result.nextUpdateAt,
+        list: result.list
       }
     });
   } catch (error) {
     logger.error(`Get hot tags error: ${error.message}`);
+
+    if (config.recommendation.fallbackToLegacy) {
+      logger.warn('Falling back to legacy hot tags implementation');
+      try {
+        return await getLegacyHotTags(req, res);
+      } catch (legacyError) {
+        logger.error(
+          `Legacy hot tags also failed: ${legacyError.message}`
+        );
+      }
+    }
+
     return res.status(500).json({ code: 1, message: 'Server error' });
   }
 };
 
 exports.searchDeepSea = async (req, res) => {
   try {
-    const page = Number(req.query.page || 1);
-    const limit = Number(req.query.limit || 20);
-    const keyword = (req.query.keyword || '').trim();
-    const tags = sanitizeTags(req.query.tags);
-
-    const filter = {};
-
-    if (tags.length > 0) {
-      filter.tags = { $all: tags };
-    }
-
-    if (keyword) {
-      const regex = new RegExp(escapeRegex(keyword), 'i');
-      filter.$or = [{ title: regex }, { contentText: regex }, { dynamicTag: regex }];
-    }
-
-    const [list, total] = await Promise.all([
-      Post.find(filter)
-        .populate('author', 'nickname avatar')
-        .sort({ resonanceCount: -1, createdAt: -1 })
-        .skip((page - 1) * limit)
-        .limit(limit)
-        .lean(),
-      Post.countDocuments(filter)
-    ]);
-
-    const enriched = await attachInteractionState(list, req.userId);
+    const result = await recommendation.searchDeepSea({
+      page: Number(req.query.page || 1),
+      limit: Number(req.query.limit || 20),
+      keyword: req.query.keyword,
+      tags: req.query.tags,
+      userId: req.userId
+    });
 
     return res.json({
       code: 0,
       data: {
-        list: enriched,
-        query: {
-          keyword,
-          tags
-        },
-        pagination: {
-          page,
-          limit,
-          total,
-          pages: Math.ceil(total / limit)
-        }
+        list: result.list,
+        query: result.query,
+        pagination: result.pagination
       }
     });
   } catch (error) {
@@ -268,7 +276,9 @@ exports.getPostDetail = async (req, res) => {
   try {
     const postId = req.params.id;
 
-    const post = await Post.findById(postId).populate('author', 'nickname avatar').lean();
+    const post = await Post.findById(postId)
+      .populate('author', 'nickname avatar')
+      .lean();
     if (!post) {
       return res.status(404).json({ code: 1, message: 'Post not found' });
     }
@@ -306,8 +316,14 @@ exports.getPostDetail = async (req, res) => {
         )
       }));
 
-    const [enrichedPost] = await attachInteractionState([post], req.userId);
-    const enrichedSuperEchoes = await attachInteractionState(superEchoes, req.userId);
+    const [enrichedPost] = await attachInteractionState(
+      [post],
+      req.userId
+    );
+    const enrichedSuperEchoes = await attachInteractionState(
+      superEchoes,
+      req.userId
+    );
 
     return res.json({
       code: 0,
@@ -370,6 +386,7 @@ exports.getResonanceList = async (req, res) => {
 
 exports.getSuperEchoTree = async (req, res) => {
   try {
+    const mongoose = require('mongoose');
     const rootId = req.params.id;
     const objectId = new mongoose.Types.ObjectId(rootId);
 
@@ -393,9 +410,18 @@ exports.getSuperEchoTree = async (req, res) => {
     const root = treeData[0];
     const descendants = root.descendants || [];
 
-    const userIds = [root.author, ...descendants.map((item) => item.author)].map((id) => id.toString());
-    const users = await User.find({ _id: { $in: [...new Set(userIds)] } }).select('nickname avatar').lean();
-    const userMap = new Map(users.map((user) => [user._id.toString(), user]));
+    const userIds = [
+      root.author,
+      ...descendants.map((item) => item.author)
+    ].map((id) => id.toString());
+    const users = await User.find({
+      _id: { $in: [...new Set(userIds)] }
+    })
+      .select('nickname avatar')
+      .lean();
+    const userMap = new Map(
+      users.map((user) => [user._id.toString(), user])
+    );
 
     const childrenMap = new Map();
     descendants.forEach((item) => {
