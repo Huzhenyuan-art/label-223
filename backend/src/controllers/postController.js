@@ -3,6 +3,7 @@ const { Post, Resonance, Comment, ResonanceNotification } = require('../models')
 const logger = require('../utils/logger');
 const config = require('../config');
 const { sendToUser } = require('../websocket');
+const { auditMultipleFields, auditContent } = require('../services/auditService');
 
 const sanitizeTags = (tags) => {
   const list = Array.isArray(tags) ? tags : [];
@@ -20,21 +21,60 @@ exports.createPost = async (req, res) => {
       return res.status(400).json({ code: 1, message: 'At least one tag is required' });
     }
 
-    const post = await Post.create({
+    const auditResult = await auditMultipleFields({
+      fieldsMap: {
+        title: req.body.title || '',
+        contentText: req.body.contentText,
+        dynamicTag: req.body.dynamicTag,
+        tags: tags.join(' ')
+      },
+      type: 'post',
+      userId: req.userId
+    });
+
+    if (auditResult.blocked) {
+      return res.status(400).json({
+        code: 1,
+        message: '内容包含违规信息，无法发布',
+        data: {
+          matchedWords: auditResult.matchedWords
+        }
+      });
+    }
+
+    const finalFields = auditResult.maskedFieldsMap || {
       title: req.body.title || '',
       contentText: req.body.contentText,
+      dynamicTag: req.body.dynamicTag,
+      tags: tags.join(' ')
+    };
+
+    const finalTags = auditResult.maskedFieldsMap
+      ? sanitizeTags(auditResult.maskedFieldsMap.tags.split(' '))
+      : tags;
+
+    const post = await Post.create({
+      title: finalFields.title || '',
+      contentText: finalFields.contentText,
       contentAudio: req.body.audioUrl || '',
       contentLink: req.body.linkUrl || '',
       coverImage: req.body.coverImage || '',
-      dynamicTag: req.body.dynamicTag,
-      tags,
+      dynamicTag: finalFields.dynamicTag,
+      tags: finalTags,
       type: 'origin',
       author: req.userId
     });
 
-    logger.info(`Post created: ${post._id} by ${req.userId}`);
+    logger.info(`Post created: ${post._id} by ${req.userId}, auditAction: ${auditResult.action}`);
 
-    return res.status(201).json({ code: 0, data: post });
+    return res.status(201).json({
+      code: 0,
+      data: post,
+      auditInfo: {
+        action: auditResult.action,
+        matchedWords: auditResult.matchedWords
+      }
+    });
   } catch (error) {
     logger.error(`Create post error: ${error.message}`);
     return res.status(500).json({ code: 1, message: 'Server error' });
@@ -58,12 +98,45 @@ exports.createSuperEcho = async (req, res) => {
       return res.status(400).json({ code: 1, message: 'At least one tag is required' });
     }
 
-    const post = await Post.create({
+    const auditResult = await auditMultipleFields({
+      fieldsMap: {
+        title: req.body.title || '',
+        contentText: req.body.contentText,
+        dynamicTag: req.body.dynamicTag,
+        tags: tags.join(' ')
+      },
+      type: 'super_echo',
+      userId: req.userId,
+      targetId: parent._id
+    });
+
+    if (auditResult.blocked) {
+      return res.status(400).json({
+        code: 1,
+        message: '内容包含违规信息，无法发布',
+        data: {
+          matchedWords: auditResult.matchedWords
+        }
+      });
+    }
+
+    const finalFields = auditResult.maskedFieldsMap || {
       title: req.body.title || '',
       contentText: req.body.contentText,
-      contentLink: req.body.linkUrl || '',
       dynamicTag: req.body.dynamicTag,
-      tags,
+      tags: tags.join(' ')
+    };
+
+    const finalTags = auditResult.maskedFieldsMap
+      ? sanitizeTags(auditResult.maskedFieldsMap.tags.split(' '))
+      : tags;
+
+    const post = await Post.create({
+      title: finalFields.title || '',
+      contentText: finalFields.contentText,
+      contentLink: req.body.linkUrl || '',
+      dynamicTag: finalFields.dynamicTag,
+      tags: finalTags,
       type: 'super_echo',
       parentPost: parent._id,
       author: req.userId
@@ -99,9 +172,16 @@ exports.createSuperEcho = async (req, res) => {
       }
     }
 
-    logger.info(`Super echo created: ${post._id} -> ${parent._id}`);
+    logger.info(`Super echo created: ${post._id} -> ${parent._id}, auditAction: ${auditResult.action}`);
 
-    return res.status(201).json({ code: 0, data: post });
+    return res.status(201).json({
+      code: 0,
+      data: post,
+      auditInfo: {
+        action: auditResult.action,
+        matchedWords: auditResult.matchedWords
+      }
+    });
   } catch (error) {
     logger.error(`Create super echo error: ${error.message}`);
     return res.status(500).json({ code: 1, message: 'Server error' });
@@ -159,21 +239,53 @@ exports.createComment = async (req, res) => {
       return res.status(404).json({ code: 1, message: 'Post not found' });
     }
 
+    const auditResult = await auditMultipleFields({
+      fieldsMap: {
+        dynamicTag: req.body.dynamicTag,
+        content: req.body.content
+      },
+      type: 'comment',
+      userId: req.userId,
+      targetId: post._id
+    });
+
+    if (auditResult.blocked) {
+      return res.status(400).json({
+        code: 1,
+        message: '内容包含违规信息，无法发布',
+        data: {
+          matchedWords: auditResult.matchedWords
+        }
+      });
+    }
+
+    const finalFields = auditResult.maskedFieldsMap || {
+      dynamicTag: req.body.dynamicTag,
+      content: req.body.content
+    };
+
     const comment = await Comment.create({
       post: postId,
       user: req.userId,
       parentComment: null,
-      dynamicTag: req.body.dynamicTag,
-      content: req.body.content
+      dynamicTag: finalFields.dynamicTag,
+      content: finalFields.content
     });
 
     await Post.findByIdAndUpdate(postId, { $inc: { commentCount: 1 } });
 
     await comment.populate('user', 'nickname avatar');
 
-    logger.info(`Comment created: ${comment._id} on ${postId}`);
+    logger.info(`Comment created: ${comment._id} on ${postId}, auditAction: ${auditResult.action}`);
 
-    return res.status(201).json({ code: 0, data: comment });
+    return res.status(201).json({
+      code: 0,
+      data: comment,
+      auditInfo: {
+        action: auditResult.action,
+        matchedWords: auditResult.matchedWords
+      }
+    });
   } catch (error) {
     logger.error(`Create comment error: ${error.message}`);
     return res.status(500).json({ code: 1, message: 'Server error' });
@@ -199,12 +311,37 @@ exports.createCommentReply = async (req, res) => {
       return res.status(400).json({ code: 1, message: 'Only one level of reply is allowed' });
     }
 
+    const auditResult = await auditMultipleFields({
+      fieldsMap: {
+        dynamicTag: req.body.dynamicTag,
+        content: req.body.content
+      },
+      type: 'comment_reply',
+      userId: req.userId,
+      targetId: parentCommentId
+    });
+
+    if (auditResult.blocked) {
+      return res.status(400).json({
+        code: 1,
+        message: '内容包含违规信息，无法发布',
+        data: {
+          matchedWords: auditResult.matchedWords
+        }
+      });
+    }
+
+    const finalFields = auditResult.maskedFieldsMap || {
+      dynamicTag: req.body.dynamicTag,
+      content: req.body.content
+    };
+
     const reply = await Comment.create({
       post: postId,
       user: req.userId,
       parentComment: parentCommentId,
-      dynamicTag: req.body.dynamicTag,
-      content: req.body.content
+      dynamicTag: finalFields.dynamicTag,
+      content: finalFields.content
     });
 
     await Post.findByIdAndUpdate(postId, { $inc: { commentCount: 1 } });
@@ -212,9 +349,16 @@ exports.createCommentReply = async (req, res) => {
     await reply.populate('user', 'nickname avatar');
     await reply.populate('parentComment', '_id');
 
-    logger.info(`Comment reply created: ${reply._id} -> ${parentCommentId}`);
+    logger.info(`Comment reply created: ${reply._id} -> ${parentCommentId}, auditAction: ${auditResult.action}`);
 
-    return res.status(201).json({ code: 0, data: reply });
+    return res.status(201).json({
+      code: 0,
+      data: reply,
+      auditInfo: {
+        action: auditResult.action,
+        matchedWords: auditResult.matchedWords
+      }
+    });
   } catch (error) {
     logger.error(`Create comment reply error: ${error.message}`);
     return res.status(500).json({ code: 1, message: 'Server error' });
@@ -256,24 +400,64 @@ exports.updatePost = async (req, res) => {
       return res.status(400).json({ code: 1, message: 'At least one tag is required' });
     }
 
+    const auditResult = await auditMultipleFields({
+      fieldsMap: {
+        title: req.body.title || '',
+        contentText: req.body.contentText,
+        dynamicTag: req.body.dynamicTag,
+        tags: tags.join(' ')
+      },
+      type: 'post',
+      userId: req.userId,
+      targetId: post._id
+    });
+
+    if (auditResult.blocked) {
+      return res.status(400).json({
+        code: 1,
+        message: '内容包含违规信息，无法保存',
+        data: {
+          matchedWords: auditResult.matchedWords
+        }
+      });
+    }
+
+    const finalFields = auditResult.maskedFieldsMap || {
+      title: req.body.title || '',
+      contentText: req.body.contentText,
+      dynamicTag: req.body.dynamicTag,
+      tags: tags.join(' ')
+    };
+
+    const finalTags = auditResult.maskedFieldsMap
+      ? sanitizeTags(auditResult.maskedFieldsMap.tags.split(' '))
+      : tags;
+
     const updatedPost = await Post.findByIdAndUpdate(
       postId,
       {
-        title: req.body.title || '',
-        contentText: req.body.contentText,
+        title: finalFields.title || '',
+        contentText: finalFields.contentText,
         contentAudio: req.body.audioUrl || '',
         contentLink: req.body.linkUrl || '',
         coverImage: req.body.coverImage || '',
-        dynamicTag: req.body.dynamicTag,
-        tags,
+        dynamicTag: finalFields.dynamicTag,
+        tags: finalTags,
         updatedAt: new Date()
       },
       { new: true, runValidators: true }
     );
 
-    logger.info(`Post updated: ${postId} by ${req.userId}`);
+    logger.info(`Post updated: ${postId} by ${req.userId}, auditAction: ${auditResult.action}`);
 
-    return res.json({ code: 0, data: updatedPost });
+    return res.json({
+      code: 0,
+      data: updatedPost,
+      auditInfo: {
+        action: auditResult.action,
+        matchedWords: auditResult.matchedWords
+      }
+    });
   } catch (error) {
     logger.error(`Update post error: ${error.message}`);
     return res.status(500).json({ code: 1, message: 'Server error' });

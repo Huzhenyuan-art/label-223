@@ -6,6 +6,7 @@ const paymentRoutes = require('./paymentRoutes');
 const commerceRoutes = require('./commerceRoutes');
 const uploadRoutes = require('./uploadRoutes');
 const privateGroupRoutes = require('./privateGroupRoutes');
+const auditRoutes = require('./auditRoutes');
 
 module.exports = (app) => {
   app.use('/api/users', userRoutes);
@@ -16,4 +17,5 @@ module.exports = (app) => {
   app.use('/api/commerce', commerceRoutes);
   app.use('/api/upload', uploadRoutes);
   app.use('/api/private-groups', privateGroupRoutes);
+  app.use('/api/audit', auditRoutes);
 };

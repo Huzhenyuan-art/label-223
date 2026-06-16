@@ -12,6 +12,8 @@ const BrandCampInquiry = require('./BrandCampInquiry');
 const PrivateGroup = require('./PrivateGroup');
 const PrivateGroupPost = require('./PrivateGroupPost');
 const ResonanceNotification = require('./ResonanceNotification');
+const SensitiveWord = require('./SensitiveWord');
+const AuditLog = require('./AuditLog');
 
 module.exports = {
   User,
@@ -27,5 +29,7 @@ module.exports = {
   BrandCampInquiry,
   PrivateGroup,
   PrivateGroupPost,
-  ResonanceNotification
+  ResonanceNotification,
+  SensitiveWord,
+  AuditLog
 };

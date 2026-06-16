@@ -4,6 +4,7 @@ const { Message, User, Post, Resonance, RevealDecision } = require('../models');
 const logger = require('../utils/logger');
 const config = require('../config');
 const { verifyToken } = require('../utils/auth');
+const { auditMultipleFields } = require('../services/auditService');
 
 const clients = new Map();
 
@@ -115,12 +116,36 @@ const setupWebSocket = (server) => {
             }
           }
 
+          const auditResult = await auditMultipleFields({
+            fieldsMap: {
+              senderDynamicTag: msg.senderDynamicTag,
+              content: msg.content
+            },
+            type: 'message',
+            userId: authedUserId,
+            targetId: conversationId
+          });
+
+          if (auditResult.blocked) {
+            ws.send(JSON.stringify({
+              type: 'error',
+              message: '消息包含违规信息，无法发送',
+              matchedWords: auditResult.matchedWords
+            }));
+            return;
+          }
+
+          const finalFields = auditResult.maskedFieldsMap || {
+            senderDynamicTag: msg.senderDynamicTag,
+            content: msg.content
+          };
+
           const created = await Message.create({
             conversationId,
             sender: authedUserId,
             receiver: msg.receiverId,
-            senderDynamicTag: msg.senderDynamicTag,
-            content: msg.content,
+            senderDynamicTag: finalFields.senderDynamicTag,
+            content: finalFields.content,
             sourcePost
           });
 
@@ -130,7 +155,14 @@ const setupWebSocket = (server) => {
             { path: 'sourcePost', select: 'title dynamicTag' }
           ]);
 
-          const payload = { type: 'message', data: created };
+          const payload = {
+            type: 'message',
+            data: created,
+            auditInfo: {
+              action: auditResult.action,
+              matchedWords: auditResult.matchedWords
+            }
+          };
           ws.send(JSON.stringify(payload));
           sendToUser(msg.receiverId, payload);
           pushUnread(msg.receiverId).catch((e) => logger.error(`Push unread on message error: ${e.message}`));

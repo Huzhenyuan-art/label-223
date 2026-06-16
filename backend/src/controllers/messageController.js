@@ -1,6 +1,7 @@
 const { Message, User, RevealDecision, Post, Resonance } = require('../models');
 const logger = require('../utils/logger');
 const { sendToUser, pushUnread } = require('../websocket');
+const { auditMultipleFields } = require('../services/auditService');
 
 const getRevealStatus = async (conversationId, userId, otherUserId) => {
   const [counts, decision] = await Promise.all([
@@ -224,12 +225,37 @@ exports.sendMessage = async (req, res) => {
       }
     }
 
+    const auditResult = await auditMultipleFields({
+      fieldsMap: {
+        senderDynamicTag,
+        content
+      },
+      type: 'message',
+      userId: senderId,
+      targetId: conversationId
+    });
+
+    if (auditResult.blocked) {
+      return res.status(400).json({
+        code: 1,
+        message: '消息包含违规信息，无法发送',
+        data: {
+          matchedWords: auditResult.matchedWords
+        }
+      });
+    }
+
+    const finalFields = auditResult.maskedFieldsMap || {
+      senderDynamicTag,
+      content
+    };
+
     const message = await Message.create({
       conversationId,
       sender: senderId,
       receiver: receiverId,
-      senderDynamicTag,
-      content,
+      senderDynamicTag: finalFields.senderDynamicTag,
+      content: finalFields.content,
       sourcePost
     });
 
@@ -239,11 +265,18 @@ exports.sendMessage = async (req, res) => {
       { path: 'sourcePost', select: 'title dynamicTag' }
     ]);
 
-    logger.info(`Message sent: ${message._id}`);
+    logger.info(`Message sent: ${message._id}, auditAction: ${auditResult.action}`);
 
     pushUnread(receiverId).catch((e) => logger.error(`Push unread on HTTP send error: ${e.message}`));
 
-    return res.status(201).json({ code: 0, data: message });
+    return res.status(201).json({
+      code: 0,
+      data: message,
+      auditInfo: {
+        action: auditResult.action,
+        matchedWords: auditResult.matchedWords
+      }
+    });
   } catch (error) {
     logger.error(`Send message error: ${error.message}`);
     return res.status(500).json({ code: 1, message: 'Server error' });
