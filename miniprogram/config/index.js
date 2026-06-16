@@ -68,7 +68,17 @@ const config = {
     TAG_MY_SUBSCRIBED: '/api/tags/me/subscribed',
     TAG_NEW_STATUS: '/api/tags/me/new-status',
     TAG_SUBSCRIBE_PREFIX: '/api/tags',
-    TAG_POSTS_PREFIX: '/api/tags'
+    TAG_POSTS_PREFIX: '/api/tags',
+
+    ADMIN_LOGIN: '/api/admin/login',
+    ADMIN_ME: '/api/admin/me',
+    ADMIN_DASHBOARD: '/api/admin/dashboard/stats',
+    ADMIN_USERS: '/api/admin/users',
+    ADMIN_POSTS: '/api/admin/posts',
+    ADMIN_CONVERSATIONS: '/api/admin/conversations',
+    ADMIN_ORDERS: '/api/admin/orders',
+    ADMIN_INQUIRIES: '/api/admin/inquiries',
+    ADMIN_LOGS: '/api/admin/operation-logs'
   }
 };
 

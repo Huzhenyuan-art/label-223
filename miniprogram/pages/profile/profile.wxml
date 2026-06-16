@@ -119,6 +119,21 @@
     <view wx:else class="muted">你还没有发射频率。</view>
   </view>
 
+  <view class="ocean-card" wx:if="{{isAdmin}}">
+    <view class="section-title">运营管理</view>
+    <view class="actions-grid">
+      <view class="action-cell">
+        <button class="btn-primary action-grid-btn" bindtap="goAdminPanel">管理后台</button>
+      </view>
+      <view class="action-cell">
+        <view class="action-grid-placeholder"></view>
+      </view>
+      <view class="action-cell">
+        <view class="action-grid-placeholder"></view>
+      </view>
+    </view>
+  </view>
+
   <view class="ocean-card">
     <view class="section-title">内容审核管理</view>
     <view class="actions-grid">

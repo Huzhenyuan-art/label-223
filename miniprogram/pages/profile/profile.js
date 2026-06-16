@@ -5,6 +5,7 @@ const { ensureLogin, formatTimeAgo, showFriendlyError, goToLogin, safeNavigateTo
 Page({
   data: {
     isLoggedIn: false,
+    isAdmin: false,
     profile: null,
     metrics: null,
     interestMap: [],
@@ -60,6 +61,7 @@ Page({
       this.setData({
         profile: island.profile,
         metrics: island.metrics,
+        isAdmin: island.profile?.isAdmin || false,
         interestMap,
         favoritesByTag: island.favoritesByTag || [],
         unreadResonanceCount: island.unreadResonanceNotificationCount || 0,
@@ -121,6 +123,10 @@ Page({
 
   goSensitiveWords() {
     safeNavigateTo('/pages/sensitiveWords/sensitiveWords');
+  },
+
+  goAdminPanel() {
+    safeNavigateTo('/pages/admin/admin');
   },
 
   goDetail(event) {

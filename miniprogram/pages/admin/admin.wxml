@@ -1,0 +1,312 @@
+<view class="container" wx:if="{{isLoggedIn}}">
+  <view class="tab-bar">
+    <view class="tab-item {{activeTab === 'dashboard' ? 'tab-active' : ''}}" data-tab="dashboard" bindtap="switchTab">仪表盘</view>
+    <view class="tab-item {{activeTab === 'users' ? 'tab-active' : ''}}" data-tab="users" bindtap="switchTab">用户</view>
+    <view class="tab-item {{activeTab === 'posts' ? 'tab-active' : ''}}" data-tab="posts" bindtap="switchTab">帖子</view>
+    <view class="tab-item {{activeTab === 'messages' ? 'tab-active' : ''}}" data-tab="messages" bindtap="switchTab">私信</view>
+  </view>
+  <view class="tab-bar mt-12">
+    <view class="tab-item {{activeTab === 'orders' ? 'tab-active' : ''}}" data-tab="orders" bindtap="switchTab">订单</view>
+    <view class="tab-item {{activeTab === 'inquiries' ? 'tab-active' : ''}}" data-tab="inquiries" bindtap="switchTab">咨询</view>
+    <view class="tab-item {{activeTab === 'logs' ? 'tab-active' : ''}}" data-tab="logs" bindtap="switchTab">日志</view>
+  </view>
+
+  <!-- 仪表盘 -->
+  <view wx:if="{{activeTab === 'dashboard'}}">
+    <view class="ocean-card" wx:if="{{dashboard}}">
+      <view class="section-title">数据概览</view>
+      <view class="stat-grid">
+        <view class="stat-item">
+          <view class="stat-value">{{dashboard.overview.totalUsers}}</view>
+          <view class="muted">总用户</view>
+        </view>
+        <view class="stat-item">
+          <view class="stat-value">{{dashboard.overview.newUsersToday}}</view>
+          <view class="muted">今日新增</view>
+        </view>
+        <view class="stat-item">
+          <view class="stat-value">{{dashboard.overview.totalPosts}}</view>
+          <view class="muted">总帖子</view>
+        </view>
+        <view class="stat-item">
+          <view class="stat-value">{{dashboard.overview.totalOrders}}</view>
+          <view class="muted">总订单</view>
+        </view>
+      </view>
+    </view>
+
+    <view class="ocean-card" wx:if="{{dashboard}}">
+      <view class="section-title">运营数据</view>
+      <view class="stat-grid">
+        <view class="stat-item stat-caution">
+          <view class="stat-value">{{dashboard.overview.pendingInquiries}}</view>
+          <view class="muted">待处理咨询</view>
+        </view>
+        <view class="stat-item stat-warning">
+          <view class="stat-value">{{dashboard.overview.bannedUsers}}</view>
+          <view class="muted">封禁用户</view>
+        </view>
+        <view class="stat-item stat-warning">
+          <view class="stat-value">{{dashboard.overview.removedPosts}}</view>
+          <view class="muted">已下架帖子</view>
+        </view>
+        <view class="stat-item stat-success">
+          <view class="stat-value">{{dashboard.overview.totalRevenue}}</view>
+          <view class="muted">总收入(元)</view>
+        </view>
+      </view>
+    </view>
+
+    <view class="ocean-card" wx:if="{{dashboard && dashboard.trends && dashboard.trends.dailyUserTrend.length > 0}}">
+      <view class="section-title">近7日用户注册趋势</view>
+      <view class="chart-container">
+        <block wx:for="{{dashboard.trends.dailyUserTrend}}" wx:key="_id">
+          <view class="chart-bar-item">
+            <view class="chart-bar-wrap">
+              <view class="chart-bar chart-bar-user" style="height: {{item.count > 0 ? (item.count / 10 * 100) : 0}}%"></view>
+            </view>
+            <view class="chart-label">{{item._id}}</view>
+          </view>
+        </block>
+      </view>
+    </view>
+
+    <view wx:if="{{dashboardLoading && !dashboard}}" class="empty">加载中...</view>
+    <view wx:if="{{!dashboardLoading && !dashboard}}" class="empty">暂无统计数据</view>
+  </view>
+
+  <!-- 用户管理 -->
+  <view wx:if="{{activeTab === 'users'}}">
+    <view class="ocean-card">
+      <view class="filter-row">
+        <input class="input filter-input" placeholder="搜索用户昵称/账号/ID" value="{{userKeyword}}" bindinput="onUserKeywordInput" bindconfirm="searchUsers" />
+        <picker mode="selector" range="['全部状态','正常','已封禁']" value="{{userStatusIndex}}" bindchange="bindUserStatusChange">
+          <view class="filter-picker">状态</view>
+        </picker>
+      </view>
+    </view>
+
+    <view class="ocean-card" wx:if="{{userList.length > 0}}">
+      <view class="section-title">用户列表（共{{userPagination.total}}人）</view>
+      <block wx:for="{{userList}}" wx:key="_id">
+        <view class="admin-item">
+          <view class="row-between">
+            <view class="item-main">
+              <view class="item-title">{{item.nickname || '未设置昵称'}}</view>
+              <view class="muted item-meta">{{item.account || item._id}}</view>
+            </view>
+            <view class="item-right">
+              <view class="status-tag {{item.statusClass}}">{{item.statusText}}</view>
+            </view>
+          </view>
+          <view class="row-between mt-8">
+            <view class="muted item-meta">{{item.premiumText}} · 帖子{{item.postCount || 0}} · {{item.createdAtText}}</view>
+            <view wx:if="{{item.status === 'active'}}" class="action-link action-danger" data-id="{{item._id}}" data-nickname="{{item.nickname}}" bindtap="banUser">封禁</view>
+            <view wx:elif="{{item.status === 'banned'}}" class="action-link action-success" data-id="{{item._id}}" data-nickname="{{item.nickname}}" bindtap="unbanUser">解封</view>
+          </view>
+        </view>
+      </block>
+      <view wx:if="{{userListLoading}}" class="muted mt-16 text-center">加载中...</view>
+      <view wx:if="{{!userListLoading && !userHasMore && userList.length > 0}}" class="muted mt-16 text-center">没有更多了</view>
+    </view>
+    <view wx:elif="{{!userListLoading}}" class="empty">暂无用户数据</view>
+  </view>
+
+  <!-- 帖子管理 -->
+  <view wx:if="{{activeTab === 'posts'}}">
+    <view class="ocean-card">
+      <view class="filter-row">
+        <input class="input filter-input" placeholder="搜索标题/内容/标签" value="{{postKeyword}}" bindinput="onPostKeywordInput" bindconfirm="searchPosts" />
+        <picker mode="selector" range="['全部状态','已发布','已下架']" value="{{postStatusIndex}}" bindchange="bindPostStatusChange">
+          <view class="filter-picker">状态</view>
+        </picker>
+      </view>
+    </view>
+
+    <view class="ocean-card" wx:if="{{postList.length > 0}}">
+      <view class="section-title">帖子列表（共{{postPagination.total}}条）</view>
+      <block wx:for="{{postList}}" wx:key="_id">
+        <view class="admin-item">
+          <view class="row-between">
+            <view class="item-main">
+              <view class="item-title">{{item.title || item.dynamicTag || '无标题'}}</view>
+              <view class="muted item-meta">作者: {{item.authorName}}</view>
+            </view>
+            <view class="status-tag {{item.statusClass}}">{{item.statusText}}</view>
+          </view>
+          <view class="muted item-desc mt-8">{{item.contentText}}</view>
+          <view class="row-between mt-8">
+            <view class="muted item-meta">共鸣{{item.resonanceCount || 0}} · 回声{{item.commentCount || 0}} · {{item.createdAtText}}</view>
+            <view wx:if="{{item.status === 'published'}}" class="action-link action-danger" data-id="{{item._id}}" data-title="{{item.title}}" bindtap="removePost">下架</view>
+            <view wx:elif="{{item.status === 'removed'}}" class="action-link action-success" data-id="{{item._id}}" bindtap="restorePost">恢复</view>
+          </view>
+        </view>
+      </block>
+      <view wx:if="{{postListLoading}}" class="muted mt-16 text-center">加载中...</view>
+      <view wx:if="{{!postListLoading && !postHasMore && postList.length > 0}}" class="muted mt-16 text-center">没有更多了</view>
+    </view>
+    <view wx:elif="{{!postListLoading}}" class="empty">暂无帖子数据</view>
+  </view>
+
+  <!-- 私信管理 -->
+  <view wx:if="{{activeTab === 'messages'}}">
+    <view class="ocean-card">
+      <view class="filter-row">
+        <input class="input filter-input" placeholder="搜索会话内容" value="{{conversationKeyword}}" bindinput="onConversationKeywordInput" bindconfirm="searchConversations" />
+      </view>
+    </view>
+
+    <view class="ocean-card" wx:if="{{conversationList.length > 0}}">
+      <view class="section-title">会话列表（共{{conversationPagination.total}}个）</view>
+      <block wx:for="{{conversationList}}" wx:key="conversationId">
+        <view class="admin-item">
+          <view class="item-title">{{item.participantNames}}</view>
+          <view class="muted item-desc mt-8">{{item.lastMessageContent}}</view>
+          <view class="row-between mt-8">
+            <view class="muted item-meta">{{item.messageCount}}条消息 · {{item.lastMessageTime}}</view>
+          </view>
+        </view>
+      </block>
+      <view wx:if="{{conversationListLoading}}" class="muted mt-16 text-center">加载中...</view>
+      <view wx:if="{{!conversationListLoading && !conversationHasMore && conversationList.length > 0}}" class="muted mt-16 text-center">没有更多了</view>
+    </view>
+    <view wx:elif="{{!conversationListLoading}}" class="empty">暂无会话数据</view>
+  </view>
+
+  <!-- 订单管理 -->
+  <view wx:if="{{activeTab === 'orders'}}">
+    <view class="ocean-card" wx:if="{{orderStats}}">
+      <view class="section-title">订单统计</view>
+      <view class="stat-grid">
+        <view class="stat-item">
+          <view class="stat-value">{{orderStats.paidOrders}}</view>
+          <view class="muted">已支付</view>
+        </view>
+        <view class="stat-item stat-success">
+          <view class="stat-value">{{orderStats.paidAmount}}</view>
+          <view class="muted">已收金额</view>
+        </view>
+      </view>
+    </view>
+
+    <view class="ocean-card">
+      <view class="filter-row">
+        <picker mode="selector" range="['全部状态','待支付','已支付','失败']" value="{{orderStatusIndex}}" bindchange="bindOrderStatusChange">
+          <view class="filter-picker">状态筛选</view>
+        </picker>
+      </view>
+    </view>
+
+    <view class="ocean-card" wx:if="{{orderList.length > 0}}">
+      <view class="section-title">订单列表（共{{orderPagination.total}}条）</view>
+      <block wx:for="{{orderList}}" wx:key="_id">
+        <view class="admin-item">
+          <view class="row-between">
+            <view class="item-main">
+              <view class="item-title">{{item.planName || item.plan}} - {{item.userName}}</view>
+              <view class="muted item-meta">{{item.orderNo || item._id}}</view>
+            </view>
+            <view class="status-tag {{item.statusClass}}">{{item.statusText}}</view>
+          </view>
+          <view class="row-between mt-8">
+            <view class="muted item-meta">金额: {{item.amount}}元 · {{item.createdAtText}}</view>
+            <view wx:if="{{item.status === 'pending'}}" class="action-link" data-id="{{item._id}}" data-orderno="{{item.orderNo}}" bindtap="confirmOrder">确认</view>
+          </view>
+        </view>
+      </block>
+      <view wx:if="{{orderListLoading}}" class="muted mt-16 text-center">加载中...</view>
+      <view wx:if="{{!orderListLoading && !orderHasMore && orderList.length > 0}}" class="muted mt-16 text-center">没有更多了</view>
+    </view>
+    <view wx:elif="{{!orderListLoading}}" class="empty">暂无订单数据</view>
+  </view>
+
+  <!-- 营地咨询 -->
+  <view wx:if="{{activeTab === 'inquiries'}}">
+    <view class="ocean-card" wx:if="{{inquiryStats}}">
+      <view class="section-title">咨询统计</view>
+      <view class="stat-grid">
+        <view class="stat-item stat-caution">
+          <view class="stat-value">{{inquiryStats.pending}}</view>
+          <view class="muted">待处理</view>
+        </view>
+        <view class="stat-item stat-success">
+          <view class="stat-value">{{inquiryStats.contacted}}</view>
+          <view class="muted">已联系</view>
+        </view>
+      </view>
+    </view>
+
+    <view class="ocean-card">
+      <view class="filter-row">
+        <picker mode="selector" range="['全部状态','待处理','已联系']" value="{{inquiryStatusIndex}}" bindchange="bindInquiryStatusChange">
+          <view class="filter-picker">状态筛选</view>
+        </picker>
+      </view>
+    </view>
+
+    <view class="ocean-card" wx:if="{{inquiryList.length > 0}}">
+      <view class="section-title">咨询列表（共{{inquiryPagination.total}}条）</view>
+      <block wx:for="{{inquiryList}}" wx:key="_id">
+        <view class="admin-item">
+          <view class="row-between">
+            <view class="item-main">
+              <view class="item-title">{{item.campName}}</view>
+              <view class="muted item-meta">咨询人: {{item.userName}}</view>
+            </view>
+            <view class="status-tag {{item.statusClass}}">{{item.statusText}}</view>
+          </view>
+          <view class="muted item-desc mt-8">{{item.message || item.contactInfo || ''}}</view>
+          <view class="row-between mt-8">
+            <view class="muted item-meta">{{item.createdAtText}}</view>
+            <view wx:if="{{item.status === 'pending'}}" class="action-link" data-id="{{item._id}}" bindtap="markInquiryContacted">标记已联系</view>
+          </view>
+        </view>
+      </block>
+      <view wx:if="{{inquiryListLoading}}" class="muted mt-16 text-center">加载中...</view>
+      <view wx:if="{{!inquiryListLoading && !inquiryHasMore && inquiryList.length > 0}}" class="muted mt-16 text-center">没有更多了</view>
+    </view>
+    <view wx:elif="{{!inquiryListLoading}}" class="empty">暂无咨询数据</view>
+  </view>
+
+  <!-- 操作日志 -->
+  <view wx:if="{{activeTab === 'logs'}}">
+    <view class="ocean-card">
+      <view class="filter-row">
+        <picker mode="selector" range="['全部模块','用户管理','帖子管理','私信管理','订单管理','营地咨询','系统']" value="{{logModuleIndex}}" bindchange="bindLogModuleChange">
+          <view class="filter-picker">模块筛选</view>
+        </picker>
+      </view>
+    </view>
+
+    <view class="ocean-card" wx:if="{{logList.length > 0}}">
+      <view class="section-title">操作日志（共{{logPagination.total}}条）</view>
+      <block wx:for="{{logList}}" wx:key="_id">
+        <view class="admin-item">
+          <view class="row-between">
+            <view class="item-main">
+              <view class="item-title">{{item.action}}</view>
+              <view class="muted item-meta">{{item.moduleText}} · 操作人: {{item.adminName}}</view>
+            </view>
+            <view class="muted item-meta">{{item.createdAtText}}</view>
+          </view>
+          <view class="muted item-desc mt-8" wx:if="{{item.detail && item.detail.reason}}">原因: {{item.detail.reason}}</view>
+        </view>
+      </block>
+      <view wx:if="{{logListLoading}}" class="muted mt-16 text-center">加载中...</view>
+      <view wx:if="{{!logListLoading && !logHasMore && logList.length > 0}}" class="muted mt-16 text-center">没有更多了</view>
+    </view>
+    <view wx:elif="{{!logListLoading}}" class="empty">暂无操作日志</view>
+  </view>
+</view>
+
+<view class="container" wx:elif="{{!isLoggedIn}}">
+  <view class="hero-card">
+    <view class="hero-title">运营管理后台</view>
+    <view class="hero-subtitle">登录管理员账号后可查看和操作运营数据。</view>
+  </view>
+  <view class="ocean-card login-state-card">
+    <view class="section-title">请先登录</view>
+    <view class="muted">管理员账号登录后可使用运营管理功能。</view>
+    <button class="btn-primary mt-20" bindtap="goLogin">登录</button>
+  </view>
+</view>

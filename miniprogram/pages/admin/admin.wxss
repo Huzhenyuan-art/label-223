@@ -1,0 +1,231 @@
+.tab-bar {
+  display: flex;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 16rpx;
+  padding: 8rpx;
+  margin-bottom: 12rpx;
+  border: 2rpx solid rgba(129, 182, 206, 0.2);
+  flex-wrap: wrap;
+}
+
+.tab-item {
+  flex: 1;
+  text-align: center;
+  padding: 14rpx 0;
+  font-size: 24rpx;
+  color: #6e8794;
+  border-radius: 12rpx;
+  transition: all 0.2s ease;
+  min-width: 0;
+}
+
+.tab-active {
+  background: linear-gradient(135deg, #0b6585 0%, #0a8ab5 100%);
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16rpx;
+}
+
+.stat-item {
+  border-radius: 18rpx;
+  background: #ffffff;
+  padding: 18rpx;
+  border: 2rpx solid #d7e9f1;
+}
+
+.stat-warning {
+  border-color: #f5c6cb;
+  background: #fff5f5;
+}
+
+.stat-caution {
+  border-color: #ffe0b2;
+  background: #fff8f0;
+}
+
+.stat-success {
+  border-color: #b9dfc5;
+  background: #f3faf5;
+}
+
+.stat-value {
+  font-size: 36rpx;
+  font-weight: 600;
+  color: #0f5f7c;
+}
+
+.stat-warning .stat-value {
+  color: #c62828;
+}
+
+.stat-caution .stat-value {
+  color: #ef6c00;
+}
+
+.stat-success .stat-value {
+  color: #2e7d32;
+}
+
+.filter-row {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+}
+
+.filter-input {
+  flex: 1;
+  min-width: 0;
+  height: 72rpx;
+  line-height: 72rpx;
+  font-size: 24rpx;
+}
+
+.filter-picker {
+  padding: 0 20rpx;
+  height: 72rpx;
+  line-height: 72rpx;
+  background: #eef6fa;
+  color: #0d4f69;
+  border-radius: 16rpx;
+  font-size: 24rpx;
+  white-space: nowrap;
+}
+
+.admin-item {
+  padding: 16rpx 0;
+  border-bottom: 1rpx solid #e0edf3;
+}
+
+.admin-item:last-child {
+  border-bottom: none;
+}
+
+.item-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.item-title {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #1f3a48;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.item-meta {
+  font-size: 22rpx;
+  color: #6e8794;
+}
+
+.item-desc {
+  font-size: 26rpx;
+  color: #345462;
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+
+.item-right {
+  flex-shrink: 0;
+  margin-left: 16rpx;
+}
+
+.status-tag {
+  font-size: 22rpx;
+  padding: 4rpx 14rpx;
+  border-radius: 8rpx;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.status-active {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.status-banned {
+  background: #ffebee;
+  color: #c62828;
+}
+
+.status-pending {
+  background: #fff3e0;
+  color: #ef6c00;
+}
+
+.action-link {
+  font-size: 24rpx;
+  color: #0a5d7b;
+  font-weight: 500;
+  flex-shrink: 0;
+}
+
+.action-danger {
+  color: #e74c3c;
+}
+
+.action-success {
+  color: #2e7d32;
+}
+
+.chart-container {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  height: 240rpx;
+  padding: 16rpx 0;
+  gap: 8rpx;
+}
+
+.chart-bar-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100%;
+}
+
+.chart-bar-wrap {
+  flex: 1;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 2rpx;
+}
+
+.chart-bar {
+  width: 100%;
+  border-radius: 4rpx 4rpx 0 0;
+  min-height: 4rpx;
+  transition: height 0.3s ease;
+}
+
+.chart-bar-user {
+  background: linear-gradient(180deg, #0a8ab5 0%, #0b6585 100%);
+}
+
+.chart-label {
+  font-size: 20rpx;
+  color: #6e8794;
+  margin-top: 8rpx;
+  transform: scale(0.85);
+  white-space: nowrap;
+}
+
+.text-center {
+  text-align: center;
+}
+
+.login-state-card {
+  margin-top: 12rpx;
+}

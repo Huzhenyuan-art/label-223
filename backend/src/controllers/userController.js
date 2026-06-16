@@ -248,7 +248,8 @@ exports.getIsland = async (req, res) => {
           avatar: user.avatar,
           bio: user.bio,
           tagSkin: user.tagSkin,
-          premium
+          premium,
+          isAdmin: user.isAdmin || false
         },
         metrics: {
           resonanceIndex,
