@@ -8,6 +8,7 @@ const uploadRoutes = require('./uploadRoutes');
 const privateGroupRoutes = require('./privateGroupRoutes');
 const auditRoutes = require('./auditRoutes');
 const recommendationRoutes = require('./recommendationRoutes');
+const tagChannelRoutes = require('./tagChannelRoutes');
 
 module.exports = (app) => {
   app.use('/api/users', userRoutes);
@@ -20,4 +21,5 @@ module.exports = (app) => {
   app.use('/api/private-groups', privateGroupRoutes);
   app.use('/api/audit', auditRoutes);
   app.use('/api/recommendation', recommendationRoutes);
+  app.use('/api/tags', tagChannelRoutes);
 };

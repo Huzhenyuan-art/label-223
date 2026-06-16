@@ -61,7 +61,14 @@ const config = {
     AUDIT_SENSITIVE_WORDS_PREFIX: '/api/audit/sensitive-words',
     AUDIT_LOGS: '/api/audit/logs',
     AUDIT_STATS: '/api/audit/stats',
-    AUDIT_CACHE_REFRESH: '/api/audit/cache/refresh'
+    AUDIT_CACHE_REFRESH: '/api/audit/cache/refresh',
+
+    TAG_CHANNELS: '/api/tags/channels',
+    TAG_CHANNELS_RECOMMEND: '/api/tags/channels/recommend',
+    TAG_MY_SUBSCRIBED: '/api/tags/me/subscribed',
+    TAG_NEW_STATUS: '/api/tags/me/new-status',
+    TAG_SUBSCRIBE_PREFIX: '/api/tags',
+    TAG_POSTS_PREFIX: '/api/tags'
   }
 };
 

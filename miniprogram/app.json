@@ -18,7 +18,9 @@
     "pages/sensitiveWords/sensitiveWords",
     "pages/auditLogs/auditLogs",
     "pages/myItems/myItems",
-    "pages/transactions/transactions"
+    "pages/transactions/transactions",
+    "pages/tagChannels/tagChannels",
+    "pages/tagChannel/tagChannel"
   ],
   "window": {
     "backgroundTextStyle": "dark",

@@ -4,6 +4,42 @@
     <view class="hero-subtitle">去身份化表达，让每一次观点都被认真听见。</view>
   </view>
 
+  <view wx:if="{{subscribedTags.length}}" class="tag-shortcuts-card">
+    <view class="row-between shortcuts-header">
+      <view class="shortcuts-title">我的订阅频道</view>
+      <view class="shortcuts-manage" bindtap="handleManageTags">管理 →</view>
+    </view>
+    <scroll-view class="shortcuts-scroll" scroll-x enhanced show-scrollbar="{{false}}">
+      <view class="shortcuts-inner">
+        <block wx:for="{{subscribedTags}}" wx:key="tag">
+          <view
+            class="shortcut-chip {{activeTag === item.tag ? 'active' : ''}}"
+            data-tag="{{item.tag}}"
+            bindtap="handleTagClick"
+          >
+            <view class="shortcut-name">#{{item.displayName}}</view>
+            <view wx:if="{{item.hasNewContent}}" class="shortcut-badge">
+              {{item.unreadCount > 99 ? '99+' : (item.unreadCount > 0 ? item.unreadCount : 'NEW')}}
+            </view>
+          </view>
+        </block>
+        <view class="shortcut-chip add-btn" bindtap="handleManageTags">
+          <view class="shortcut-name">+ 添加</view>
+        </view>
+      </view>
+    </scroll-view>
+  </view>
+
+  <view wx:if="{{activeTag}}" class="active-tag-indicator">
+    <view class="active-tag-info">
+      <text class="active-tag-label">当前频道：</text>
+      <text class="active-tag-name">#{{activeTag}}</text>
+    </view>
+    <view class="active-tag-close" bindtap="handleModeChange" data-mode="recommend">
+      切换回推荐
+    </view>
+  </view>
+
   <view class="ocean-card">
     <view class="wrap">
       <block wx:for="{{modes}}" wx:key="key">

@@ -10,6 +10,7 @@ Page({
       { key: 'search', label: '深海搜索' }
     ],
     activeMode: 'recommend',
+    activeTag: '',
     keyword: '',
     tagsInput: '',
     searchTags: [],
@@ -17,6 +18,7 @@ Page({
     hotTags: [],
     radarTags: [],
     preferredTags: [],
+    subscribedTags: [],
     page: 1,
     limit: 10,
     hasMore: true,
@@ -27,11 +29,24 @@ Page({
     if (!ensureLogin()) {
       return;
     }
+    this.loadSubscribedTags();
     this.reload();
   },
 
+  async loadSubscribedTags() {
+    try {
+      const data = await request.get(config.API.TAG_MY_SUBSCRIBED);
+      this.setData({ subscribedTags: data.list || [] });
+    } catch (error) {
+      // 静默处理
+    }
+  },
+
   onPullDownRefresh() {
-    this.reload().finally(() => wx.stopPullDownRefresh());
+    Promise.all([
+      this.loadSubscribedTags(),
+      this.reload()
+    ]).finally(() => wx.stopPullDownRefresh());
   },
 
   onReachBottom() {
@@ -57,10 +72,18 @@ Page({
 
     try {
       const page = forceReset ? 1 : this.data.page;
-      const { activeMode, limit, keyword, searchTags } = this.data;
+      const { activeMode, activeTag, limit, keyword, searchTags } = this.data;
       let data;
 
-      if (activeMode === 'search') {
+      if (activeTag) {
+        data = await request.get(`${config.API.TAG_POSTS_PREFIX}/${encodeURIComponent(activeTag)}/posts`, {
+          page,
+          limit
+        });
+        data.list = data.list || [];
+        data.pagination = data.pagination || {};
+        data.preferredTags = [];
+      } else if (activeMode === 'search') {
         data = await request.get(config.API.DEEP_SEARCH, {
           page,
           limit,
@@ -76,7 +99,7 @@ Page({
         });
       }
 
-      if (activeMode === 'hot') {
+      if (activeMode === 'hot' && !activeTag) {
         const hot = await request.get(config.API.HOT_TAGS);
         const hotTags = hot.list || [];
         this.setData({
@@ -125,12 +148,32 @@ Page({
 
   handleModeChange(event) {
     const mode = event.currentTarget.dataset.mode;
-    if (mode === this.data.activeMode) {
+    if (mode === this.data.activeMode && !this.data.activeTag) {
       return;
     }
 
-    this.setData({ activeMode: mode });
+    this.setData({
+      activeMode: mode,
+      activeTag: ''
+    });
     this.reload();
+  },
+
+  handleTagClick(event) {
+    const tag = event.currentTarget.dataset.tag;
+    if (tag === this.data.activeTag) {
+      return;
+    }
+
+    this.setData({
+      activeTag: tag,
+      activeMode: 'tag'
+    });
+    this.reload();
+  },
+
+  handleManageTags() {
+    wx.navigateTo({ url: '/pages/tagChannels/tagChannels' });
   },
 
   handleKeywordInput(event) {

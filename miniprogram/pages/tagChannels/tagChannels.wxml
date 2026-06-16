@@ -1,0 +1,137 @@
+<view class="container">
+  <view class="tabs">
+    <block wx:for="{{tabs}}" wx:key="key">
+      <view
+        class="tab-item {{activeTab === item.key ? 'active' : ''}}"
+        data-tab="{{item.key}}"
+        bindtap="handleTabChange"
+      >
+        {{item.label}}
+      </view>
+    </block>
+  </view>
+
+  <view wx:if="{{activeTab === 'all'}}" class="search-bar">
+    <input
+      class="input"
+      placeholder="搜索标签..."
+      value="{{keyword}}"
+      bindinput="handleKeywordInput"
+      confirm-type="search"
+      bindconfirm="handleSearch"
+    />
+    <button class="btn-primary search-btn" bindtap="handleSearch">搜索</button>
+  </view>
+
+  <block wx:if="{{activeTab === 'recommend'}}">
+    <view wx:if="{{recommendTags.length}}" class="tag-grid">
+      <block wx:for="{{recommendTags}}" wx:key="tag">
+        <view class="tag-card">
+          <view class="tag-card-header" data-tag="{{item.tag}}" bindtap="goTagChannel">
+            <view class="tag-name">#{{item.displayName}}</view>
+            <view wx:if="{{item.reason}}" class="tag-reason">{{item.reason}}</view>
+          </view>
+          <view class="tag-card-stats">
+            <text class="stat">{{item.subscriberCount}} 订阅</text>
+            <text class="stat">{{item.postCount}} 原频</text>
+          </view>
+          <view class="tag-card-action">
+            <button
+              wx:if="{{!item.isSubscribed}}"
+              class="btn-primary btn-sm"
+              data-tag="{{item.tag}}"
+              bindtap="handleSubscribe"
+            >
+              订阅
+            </button>
+            <button
+              wx:else
+              class="btn-secondary btn-sm"
+              data-tag="{{item.tag}}"
+              bindtap="handleUnsubscribe"
+            >
+              已订阅
+            </button>
+          </view>
+        </view>
+      </block>
+    </view>
+    <view wx:else class="empty">暂无推荐标签，试试浏览全部标签吧~</view>
+  </block>
+
+  <block wx:if="{{activeTab === 'all'}}">
+    <view wx:if="{{allTags.length}}" class="tag-list">
+      <block wx:for="{{allTags}}" wx:key="tag">
+        <view class="tag-list-item">
+          <view class="tag-list-main" data-tag="{{item.tag}}" bindtap="goTagChannel">
+            <view class="tag-list-name">
+              #{{item.displayName}}
+              <text wx:if="{{item.isOfficial}}" class="official-tag">官方</text>
+            </view>
+            <view wx:if="{{item.description}}" class="tag-list-desc">{{item.description}}</view>
+            <view class="tag-list-stats">
+              <text class="stat">{{item.subscriberCount}} 订阅</text>
+              <text class="stat">{{item.postCount}} 原频</text>
+            </view>
+          </view>
+          <view class="tag-list-action">
+            <button
+              wx:if="{{!item.isSubscribed}}"
+              class="btn-primary btn-sm"
+              data-tag="{{item.tag}}"
+              bindtap="handleSubscribe"
+            >
+              订阅
+            </button>
+            <button
+              wx:else
+              class="btn-secondary btn-sm"
+              data-tag="{{item.tag}}"
+              bindtap="handleUnsubscribe"
+            >
+              已订阅
+            </button>
+          </view>
+        </view>
+      </block>
+    </view>
+    <view wx:elif="{{!loading}}" class="empty">
+      {{keyword ? '没有找到匹配的标签' : '暂无标签'}}
+    </view>
+    <view wx:if="{{loading}}" class="empty">加载中...</view>
+  </block>
+
+  <block wx:if="{{activeTab === 'subscribed'}}">
+    <view wx:if="{{subscribedTags.length}}" class="tag-list">
+      <block wx:for="{{subscribedTags}}" wx:key="tag">
+        <view class="tag-list-item">
+          <view class="tag-list-main" data-tag="{{item.tag}}" bindtap="goTagChannel">
+            <view class="tag-list-name-row">
+              <view class="tag-list-name">#{{item.displayName}}</view>
+              <view wx:if="{{item.hasNewContent}}" class="new-badge">
+                {{item.unreadCount > 99 ? '99+' : (item.unreadCount > 0 ? item.unreadCount : 'NEW')}}
+              </view>
+            </view>
+            <view wx:if="{{item.description}}" class="tag-list-desc">{{item.description}}</view>
+            <view class="tag-list-stats">
+              <text class="stat">{{item.subscriberCount}} 订阅</text>
+              <text class="stat">{{item.postCount}} 原频</text>
+            </view>
+          </view>
+          <view class="tag-list-action">
+            <button
+              class="btn-secondary btn-sm"
+              data-tag="{{item.tag}}"
+              bindtap="handleUnsubscribe"
+            >
+              取消订阅
+            </button>
+          </view>
+        </view>
+      </block>
+    </view>
+    <view wx:else class="empty">
+      还没有订阅任何标签，去推荐标签看看吧~
+    </view>
+  </block>
+</view>

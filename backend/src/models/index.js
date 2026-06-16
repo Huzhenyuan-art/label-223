@@ -18,6 +18,8 @@ const UserInterestTags = require('./UserInterestTags');
 const HotListSnapshot = require('./HotListSnapshot');
 const RecommendationCache = require('./RecommendationCache');
 const RecommendationConfig = require('./RecommendationConfig');
+const TagChannel = require('./TagChannel');
+const UserTagSubscription = require('./UserTagSubscription');
 
 module.exports = {
   User,
@@ -39,5 +41,7 @@ module.exports = {
   UserInterestTags,
   HotListSnapshot,
   RecommendationCache,
-  RecommendationConfig
+  RecommendationConfig,
+  TagChannel,
+  UserTagSubscription
 };

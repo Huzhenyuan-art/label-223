@@ -1,5 +1,5 @@
 const mongoose = require('mongoose');
-const { Post, Resonance, Comment, ResonanceNotification } = require('../models');
+const { Post, Resonance, Comment, ResonanceNotification, TagChannel, UserTagSubscription } = require('../models');
 const logger = require('../utils/logger');
 const config = require('../config');
 const { sendToUser } = require('../websocket');
@@ -64,6 +64,37 @@ exports.createPost = async (req, res) => {
       type: 'origin',
       author: req.userId
     });
+
+    try {
+      const now = new Date();
+      for (const tag of finalTags) {
+        const channel = await TagChannel.findOne({ tag });
+        if (channel) {
+          await TagChannel.updateOne(
+            { tag },
+            {
+              $inc: { postCount: 1 },
+              $set: { lastPostAt: now }
+            }
+          );
+        } else {
+          await TagChannel.create({
+            tag,
+            displayName: tag,
+            postCount: 1,
+            lastPostAt: now,
+            isActive: true
+          });
+        }
+
+        await UserTagSubscription.updateMany(
+          { tag, user: { $ne: req.userId } },
+          { $inc: { unreadCount: 1 } }
+        );
+      }
+    } catch (tagUpdateError) {
+      logger.error(`Update tag channels error: ${tagUpdateError.message}`);
+    }
 
     logger.info(`Post created: ${post._id} by ${req.userId}, auditAction: ${auditResult.action}`);
 
