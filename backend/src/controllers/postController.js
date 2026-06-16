@@ -79,7 +79,7 @@ exports.createSuperEcho = async (req, res) => {
         sender: req.userId
       });
 
-      await notification.populate('sender', 'nickname avatar dynamicTag');
+      await notification.populate('sender', 'nickname avatar');
       await notification.populate('post', 'title dynamicTag');
 
       sendToUser(parent.author.toString(), {
@@ -89,6 +89,7 @@ exports.createSuperEcho = async (req, res) => {
           post: notification.post,
           superEcho: post._id,
           sender: notification.sender,
+          senderDynamicTag: post.dynamicTag,
           createdAt: notification.createdAt
         }
       }).catch((e) => logger.error(`Push resonance notify error: ${e.message}`));

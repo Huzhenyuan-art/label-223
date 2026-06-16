@@ -536,3 +536,69 @@ TabBar 未读角标仅在 `app.js` 中管理，且仅在收到新消息（WebSoc
 - **语义化布局**：标题和操作按钮属于不同的视觉区块，放在不同行是更合理的信息架构，避免为了"节省空间"而牺牲可用性
 - **按钮点击热区**：新按钮高度 72rpx 符合微信小程序推荐的最小可点击高度（约 44pt），提升可触达性
 - **保留旧样式兼容**：原有的 .mini-btn、.actions-row 等样式类暂时保留，不直接删除，防止其他未发现的引用点报错
+---
+
+## 问题：点击加入合鸣谱系时提示 Server Error，控制台显示 500
+
+### 现象描述
+用户在频率详情页填写合鸣内容后，点击加入合鸣谱系按钮，弹出提示 Server Error，控制台网络请求显示 POST /api/posts/:id/super-echo 返回 500 状态码，合鸣创建失败。
+
+### 根因分析
+后端 createSuperEcho 方法在创建合鸣通知时，对 sender（User 模型）使用了 populate，并指定了 dynamicTag 字段：
+
+`js
+await notification.populate('sender', 'nickname avatar dynamicTag');
+`
+
+但 User 模型的 Schema 中没有 dynamicTag 字段：
+- User 模型字段：openid、account、passwordHash、authProvider、nickname、avatar、bio、tagSkin、favoritePosts、premium、lastLoginAt
+- dynamicTag 字段只存在于 Post、Comment、Message 等内容模型中，表示用户发布内容时临时使用的动态标签
+
+Mongoose 的 populate 在遇到模型 Schema 中不存在的字段时，会导致内部查询失败并抛出异常，最终被外层 try/catch 捕获后返回 500 Server error。
+
+### 修复方案
+
+#### 1. postController.js  修正 populate 字段，从 Post 对象获取 dynamicTag
+- 将 populate('sender', 'nickname avatar dynamicTag') 改为仅填充 User 模型存在的字段：'nickname avatar'
+- 合鸣时用户使用的动态标签存储在刚创建的 super_echo Post 对象（即变量 post）的 dynamicTag 字段中
+- 通过独立字段 senderDynamicTag 将该值传递给前端 WebSocket 推送
+
+修改位置：backend/src/controllers/postController.js createSuperEcho 方法
+
+`js
+// 修改前（错误）
+await notification.populate('sender', 'nickname avatar dynamicTag');
+
+// 修改后（正确）
+await notification.populate('sender', 'nickname avatar');
+// ...
+sendToUser(parent.author.toString(), {
+  type: 'resonance_notify',
+  data: {
+    // ... 其他字段
+    sender: notification.sender,
+    senderDynamicTag: post.dynamicTag,  // 从刚创建的合鸣 Post 中取 dynamicTag
+    createdAt: notification.createdAt
+  }
+});
+`
+
+### 涉及文件清单
+| 文件 | 改动说明 |
+|------|---------|
+| backend/src/controllers/postController.js | createSuperEcho 中修正 sender populate 字段，从 Post 取 dynamicTag 独立传递 |
+
+### 验证方法
+1. 登录账号 A，发布一条原频（记录帖子 ID）
+2. 退出登录账号 A，登录账号 B
+3. 进入账号 A 发布的频率详情页
+4. 填写合鸣内容（动态标签 + 标签 + 正文），点击加入合鸣谱系
+5. 预期：Toast 显示合鸣已加入谱系，页面中合鸣谱系树应新增一条记录
+6. 退出账号 B，重新登录账号 A
+7. 进入 A 的岛屿页面，预期：合鸣通知卡片应显示 1 条未读，通知列表中应能看到 B 发起的合鸣通知，发送者昵称和标签正确显示
+8. 点击该通知，应正常跳转到对应频率详情页（谱系树页面）
+
+### 注意事项
+- Mongoose populate 字段必须真实存在：populate 的字段名和 select 字段列表必须严格对应被引用模型的 Schema 定义，不存在的字段会导致查询异常
+- User 的 dynamicTag 不是持久化字段：用户每次发布内容（Post/Comment/Message）时可以使用不同的动态标签，因此 dynamicTag 属于内容模型（Post/Comment/Message），而非 User 模型
+- 跨模型数据拼装：如果需要从多个关联模型中取字段拼装返回结果，应分别 populate 各自模型的字段，再在 JS 层组合结果，而非尝试从单一 populate 中获取不属于该模型的字段
