@@ -188,7 +188,6 @@ Page({
       }));
 
       const last = list[list.length - 1];
-      const userId = wx.getStorageSync('userId');
       const otherTempName = data.reveal?.tempNicknames?.[this.data.otherUserId] || '同频回声';
       const myTempName = data.reveal?.tempNicknames?.[userId] || '';
 

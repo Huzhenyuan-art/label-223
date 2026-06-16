@@ -66,15 +66,47 @@ const TAB_BAR_ROUTES = new Set([
   'pages/profile/profile'
 ]);
 
+const PRELOAD_SETTLE_MS = 150;
+const NAV_RETRY_TIMES = 5;
+const NAV_RETRY_DELAY_MS = 120;
+
+// 非 TabBar 子页面：启动后批量预加载，避免按需注入导致 Page 未注册
+const SUB_PAGES = [
+  '/pages/detail/detail',
+  '/pages/member/member',
+  '/pages/favorites/favorites',
+  '/pages/groups/groups',
+  '/pages/chat/chat',
+  '/pages/edit/edit',
+  '/pages/sensitiveWords/sensitiveWords',
+  '/pages/auditLogs/auditLogs',
+  '/pages/admin/admin',
+  '/pages/publicProfile/publicProfile',
+  '/pages/groupCreate/groupCreate',
+  '/pages/groupDetail/groupDetail',
+  '/pages/groupMembers/groupMembers',
+  '/pages/myItems/myItems',
+  '/pages/transactions/transactions',
+  '/pages/tagChannels/tagChannels',
+  '/pages/tagChannel/tagChannel'
+];
+
 const getPagePath = (url) => url.split('?')[0].replace(/^\//, '');
+
+const isPageNotRegisteredError = (error) => {
+  const msg = (error && error.errMsg) || '';
+  return /not been registered/i.test(msg) || /timeout/i.test(msg);
+};
 
 const preloadPage = (url, callback) => {
   const run = () => {
-    try {
-      callback();
-    } catch (error) {
-      console.error('[nav] navigation callback failed:', url, error);
-    }
+    setTimeout(() => {
+      try {
+        callback();
+      } catch (error) {
+        console.error('[nav] navigation callback failed:', url, error);
+      }
+    }, TAB_BAR_ROUTES.has(getPagePath(url)) ? 0 : PRELOAD_SETTLE_MS);
   };
 
   if (TAB_BAR_ROUTES.has(getPagePath(url))) {
@@ -90,52 +122,57 @@ const preloadPage = (url, callback) => {
   run();
 };
 
-const safeNavigateTo = (url, extra = {}) => {
+const runNavigation = (url, wxMethod, extra, retriesLeft) => {
   const { fail, ...rest } = extra;
-  preloadPage(url, () => {
-    wx.navigateTo({
-      url,
-      ...rest,
-      fail: (error) => {
-        console.error('[nav] navigateTo failed:', url, error);
-        if (typeof fail === 'function') {
-          fail(error);
-        }
+
+  wxMethod({
+    url,
+    ...rest,
+    fail: (error) => {
+      if (isPageNotRegisteredError(error) && retriesLeft > 0) {
+        console.warn(`[nav] page not ready, retry (${retriesLeft} left):`, url);
+        setTimeout(() => {
+          preloadPage(url, () => {
+            runNavigation(url, wxMethod, extra, retriesLeft - 1);
+          });
+        }, NAV_RETRY_DELAY_MS);
+        return;
       }
-    });
+
+      console.error('[nav] navigation failed:', url, error);
+      if (typeof fail === 'function') {
+        fail(error);
+      }
+    }
   });
+};
+
+const safeNavigateTo = (url, extra = {}) => {
+  preloadPage(url, () => runNavigation(url, wx.navigateTo, extra, NAV_RETRY_TIMES));
 };
 
 const safeRedirectTo = (url, extra = {}) => {
-  const { fail, ...rest } = extra;
-  preloadPage(url, () => {
-    wx.redirectTo({
-      url,
-      ...rest,
-      fail: (error) => {
-        console.error('[nav] redirectTo failed:', url, error);
-        if (typeof fail === 'function') {
-          fail(error);
-        }
-      }
-    });
-  });
+  preloadPage(url, () => runNavigation(url, wx.redirectTo, extra, NAV_RETRY_TIMES));
 };
 
 const safeReLaunch = (url, extra = {}) => {
-  const { fail, ...rest } = extra;
-  preloadPage(url, () => {
-    wx.reLaunch({
-      url,
-      ...rest,
-      fail: (error) => {
-        console.error('[nav] reLaunch failed:', url, error);
-        if (typeof fail === 'function') {
-          fail(error);
-        }
-      }
+  preloadPage(url, () => runNavigation(url, wx.reLaunch, extra, NAV_RETRY_TIMES));
+};
+
+const preloadSubPages = (options = {}) => {
+  const { delay = 300 } = options;
+
+  if (typeof wx.preloadPage !== 'function') {
+    return;
+  }
+
+  setTimeout(() => {
+    SUB_PAGES.forEach((pageUrl, index) => {
+      setTimeout(() => {
+        wx.preloadPage({ url: pageUrl, fail: () => {} });
+      }, index * 40);
     });
-  });
+  }, delay);
 };
 
 const readAuthSession = () => {
@@ -231,6 +268,7 @@ module.exports = {
   safeNavigateTo,
   safeRedirectTo,
   safeReLaunch,
+  preloadSubPages,
   ensureLogin,
   showFriendlyError
 };

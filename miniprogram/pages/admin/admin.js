@@ -94,7 +94,7 @@ Page({
     else if (tab === 'logs' && this.data.logHasMore) this.loadLogs(false);
   },
 
-  switchTab: function(e) {
+  switchAdminTab: function(e) {
     var tab = e.currentTarget.dataset.tab;
     this.setData({ activeTab: tab });
     if (tab === 'dashboard' && !this.data.dashboard) this.loadDashboard();

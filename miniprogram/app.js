@@ -1,7 +1,7 @@
 const socket = require('./utils/socket');
 const config = require('./config/index');
 const request = require('./utils/request');
-const { isAuthenticated, readAuthSession, redirectToLogin, safeReLaunch } = require('./utils/util');
+const { isAuthenticated, readAuthSession, redirectToLogin, safeReLaunch, preloadSubPages } = require('./utils/util');
 
 App({
   globalData: {
@@ -28,14 +28,17 @@ App({
         socket.connect(session.authToken);
         this._bindSocketEvents();
         safeReLaunch('/pages/index/index');
+        preloadSubPages({ delay: 500 });
         return;
       }
 
       // 登录页已是入口页，仅需清理本地状态，无需 reLaunch
       this.onLogout({ redirect: false });
+      preloadSubPages({ delay: 800 });
     } catch (error) {
       console.error('[app] onLaunch error:', error);
       this.onLogout({ redirect: false });
+      preloadSubPages({ delay: 800 });
     }
   },
 
@@ -130,6 +133,7 @@ App({
     wx.setStorageSync('userId', userInfo.id);
     socket.connect(authToken);
     this._bindSocketEvents();
+    preloadSubPages({ delay: 200 });
   },
 
   onLogout(options = {}) {

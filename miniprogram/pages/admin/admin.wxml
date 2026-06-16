@@ -1,14 +1,14 @@
 <view class="container" wx:if="{{isLoggedIn}}">
   <view class="tab-bar">
-    <view class="tab-item {{activeTab === 'dashboard' ? 'tab-active' : ''}}" data-tab="dashboard" bindtap="switchTab">仪表盘</view>
-    <view class="tab-item {{activeTab === 'users' ? 'tab-active' : ''}}" data-tab="users" bindtap="switchTab">用户</view>
-    <view class="tab-item {{activeTab === 'posts' ? 'tab-active' : ''}}" data-tab="posts" bindtap="switchTab">帖子</view>
-    <view class="tab-item {{activeTab === 'messages' ? 'tab-active' : ''}}" data-tab="messages" bindtap="switchTab">私信</view>
+    <view class="tab-item {{activeTab === 'dashboard' ? 'tab-active' : ''}}" data-tab="dashboard" bindtap="handleAdminTab">仪表盘</view>
+    <view class="tab-item {{activeTab === 'users' ? 'tab-active' : ''}}" data-tab="users" bindtap="handleAdminTab">用户</view>
+    <view class="tab-item {{activeTab === 'posts' ? 'tab-active' : ''}}" data-tab="posts" bindtap="handleAdminTab">帖子</view>
+    <view class="tab-item {{activeTab === 'messages' ? 'tab-active' : ''}}" data-tab="messages" bindtap="handleAdminTab">私信</view>
   </view>
   <view class="tab-bar mt-12">
-    <view class="tab-item {{activeTab === 'orders' ? 'tab-active' : ''}}" data-tab="orders" bindtap="switchTab">订单</view>
-    <view class="tab-item {{activeTab === 'inquiries' ? 'tab-active' : ''}}" data-tab="inquiries" bindtap="switchTab">咨询</view>
-    <view class="tab-item {{activeTab === 'logs' ? 'tab-active' : ''}}" data-tab="logs" bindtap="switchTab">日志</view>
+    <view class="tab-item {{activeTab === 'orders' ? 'tab-active' : ''}}" data-tab="orders" bindtap="handleAdminTab">订单</view>
+    <view class="tab-item {{activeTab === 'inquiries' ? 'tab-active' : ''}}" data-tab="inquiries" bindtap="handleAdminTab">咨询</view>
+    <view class="tab-item {{activeTab === 'logs' ? 'tab-active' : ''}}" data-tab="logs" bindtap="handleAdminTab">日志</view>
   </view>
 
   <view wx:if="{{activeTab === 'dashboard'}}">
