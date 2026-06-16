@@ -19,6 +19,13 @@ const logger = require('../src/utils/logger');
 
 const DEMO_PASSWORD = 'password1';
 
+const ADMIN_ACCOUNT = {
+  account: 'admin',
+  nickname: '回声岛管理员',
+  avatar: 'https://images.pexels.com/photos/1181690/pexels-photo-1181690.jpeg?auto=compress&cs=tinysrgb&w=200',
+  bio: '负责社区运营与内容治理。'
+};
+
 const DEMO_LOGIN_ACCOUNTS = [
   {
     account: 'fogdao',
@@ -60,6 +67,22 @@ const createDemoUsers = async () => {
       bio: item.bio
     }))
   );
+};
+
+const createAdminUser = async () => {
+  const passwordHash = await bcrypt.hash(DEMO_PASSWORD, 12);
+
+  return User.create({
+    openid: `acct:${ADMIN_ACCOUNT.account}`,
+    account: ADMIN_ACCOUNT.account,
+    passwordHash,
+    authProvider: 'password',
+    nickname: ADMIN_ACCOUNT.nickname,
+    avatar: ADMIN_ACCOUNT.avatar,
+    bio: ADMIN_ACCOUNT.bio,
+    isAdmin: true,
+    tagSkin: 'ink'
+  });
 };
 
 const createOriginPosts = async (users) => {
@@ -145,6 +168,7 @@ const main = async () => {
     ]);
 
     const users = await createDemoUsers();
+    const adminUser = await createAdminUser();
     const origins = await createOriginPosts(users);
 
     const superEchoes = await Post.create([
@@ -393,7 +417,7 @@ const main = async () => {
       members: [users[0]._id, users[1]._id]
     });
 
-    logger.info(`Seed completed. users=${users.length}, posts=${origins.length + superEchoes.length}, order=${paidOrder.orderNo}`);
+    logger.info(`Seed completed. users=${users.length}, admin=${adminUser.account}, posts=${origins.length + superEchoes.length}, order=${paidOrder.orderNo}`);
     await mongoose.connection.close();
     process.exit(0);
   } catch (error) {

@@ -32,6 +32,7 @@
 | `tide_writer` | `password1` | 潮汐写作者 | 与雾岛慢声有进行中私信，可体验身份揭示 |
 | `lowfreq_fan` | `password1` | 低频乐器控 | 普通用户，已发布音乐类频率 |
 | `calm_asker` | `password1` | 沉静提问者 | 普通用户，已发布阅读类频率 |
+| `admin` | `password1` | 回声岛管理员 | 管理员账号，登录后岛屿页可见「管理后台」入口 |
 
 > 以上账号统一密码为 `password1`，仅用于本地演示。
 
