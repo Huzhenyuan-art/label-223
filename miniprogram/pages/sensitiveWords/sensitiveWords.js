@@ -1,6 +1,6 @@
 const request = require('../../utils/request');
 const config = require('../../config/index');
-const { ensureLogin, formatTimeAgo, showFriendlyError } = require('../../utils/util');
+const { ensureLogin, formatTimeAgo, showFriendlyError, goToLogin } = require('../../utils/util');
 
 const FILTER_CATEGORY_LIST = [
   '全部分类',
@@ -333,6 +333,6 @@ Page({
   },
 
   goLogin() {
-    wx.navigateTo({ url: '/pages/login/login' });
+    goToLogin();
   }
 });

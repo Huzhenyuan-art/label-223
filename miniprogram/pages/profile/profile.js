@@ -1,6 +1,6 @@
 const request = require('../../utils/request');
 const config = require('../../config/index');
-const { ensureLogin, formatTimeAgo, showFriendlyError } = require('../../utils/util');
+const { ensureLogin, formatTimeAgo, showFriendlyError, goToLogin } = require('../../utils/util');
 
 Page({
   data: {
@@ -208,10 +208,10 @@ Page({
       resonanceNotifyLoading: false,
       loadFailed: false
     });
-    wx.navigateTo({ url: '/pages/login/login' });
+    goToLogin();
   },
 
   goLogin() {
-    wx.navigateTo({ url: '/pages/login/login' });
+    goToLogin();
   }
 });

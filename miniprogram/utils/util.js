@@ -56,21 +56,90 @@ const parseTagsInput = (value) => {
   )].slice(0, 5);
 };
 
+const LOGIN_PAGE_ROUTE = 'pages/login/login';
+const LOGIN_PAGE_URL = '/pages/login/login';
+
+const readAuthSession = () => {
+  try {
+    const userInfo = wx.getStorageSync('userInfo');
+    const authToken = wx.getStorageSync('authToken');
+    return { userInfo, authToken };
+  } catch (e) {
+    console.error('[auth] read storage error:', e);
+    return { userInfo: null, authToken: '' };
+  }
+};
+
+const isAuthenticated = (session) => {
+  const { userInfo, authToken } = session || readAuthSession();
+  return !!(userInfo && userInfo.id && authToken);
+};
+
+const getCurrentRoute = () => {
+  const pages = getCurrentPages();
+  const currentPage = pages[pages.length - 1];
+  return currentPage ? currentPage.route : '';
+};
+
+const redirectToLogin = (options = {}) => {
+  const { replace = true } = options;
+
+  if (getCurrentRoute() === LOGIN_PAGE_ROUTE) {
+    return;
+  }
+
+  const launch = () => {
+    if (getCurrentRoute() === LOGIN_PAGE_ROUTE) {
+      return;
+    }
+
+    if (replace) {
+      wx.reLaunch({
+        url: LOGIN_PAGE_URL,
+        fail: (error) => {
+          console.error('[auth] reLaunch login failed:', error);
+          wx.redirectTo({
+            url: LOGIN_PAGE_URL,
+            fail: (error2) => {
+              console.error('[auth] redirectTo login failed:', error2);
+              wx.navigateTo({ url: LOGIN_PAGE_URL });
+            }
+          });
+        }
+      });
+      return;
+    }
+
+    wx.navigateTo({
+      url: LOGIN_PAGE_URL,
+      fail: () => wx.reLaunch({ url: LOGIN_PAGE_URL })
+    });
+  };
+
+  // 先预加载登录页脚本，避免「Page has not been registered yet」超时白屏
+  if (typeof wx.preloadPage === 'function') {
+    wx.preloadPage({
+      url: LOGIN_PAGE_URL,
+      success: launch,
+      fail: launch
+    });
+    return;
+  }
+
+  launch();
+};
+
+const goToLogin = () => {
+  redirectToLogin({ replace: false });
+};
+
 const ensureLogin = (options = {}) => {
   const {
     showToast = true,
     redirect = true
   } = options;
 
-  let authToken;
-  try {
-    authToken = wx.getStorageSync('authToken');
-  } catch (e) {
-    console.error('[ensureLogin] get storage error:', e);
-    authToken = null;
-  }
-
-  if (authToken) {
+  if (isAuthenticated()) {
     return true;
   }
 
@@ -84,26 +153,7 @@ const ensureLogin = (options = {}) => {
 
   if (redirect) {
     setTimeout(() => {
-      try {
-        const pages = getCurrentPages();
-        const currentPage = pages[pages.length - 1];
-        const currentRoute = currentPage ? currentPage.route : '';
-        if (currentRoute === 'pages/login/login') {
-          return;
-        }
-        wx.reLaunch({ url: '/pages/login/login' });
-      } catch (e) {
-        console.error('[ensureLogin] redirect error:', e);
-        try {
-          wx.redirectTo({ url: '/pages/login/login' });
-        } catch (e2) {
-          try {
-            wx.navigateTo({ url: '/pages/login/login' });
-          } catch (e3) {
-            console.error('[ensureLogin] all redirect methods failed');
-          }
-        }
-      }
+      redirectToLogin({ replace: true });
     }, showToast ? 500 : 0);
   }
 
@@ -126,6 +176,10 @@ module.exports = {
   formatTimeAgo,
   formatDateLabel,
   parseTagsInput,
+  readAuthSession,
+  isAuthenticated,
+  goToLogin,
+  redirectToLogin,
   ensureLogin,
   showFriendlyError
 };

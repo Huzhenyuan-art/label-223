@@ -1,6 +1,6 @@
 const request = require('../../utils/request');
 const config = require('../../config/index');
-const { ensureLogin, formatTimeAgo, showFriendlyError } = require('../../utils/util');
+const { ensureLogin, formatTimeAgo, showFriendlyError, goToLogin } = require('../../utils/util');
 
 const TYPE_LIST = ['全部类型', '帖子', '超级回声', '评论', '评论回复', '私信'];
 const TYPE_KEYS = ['', 'post', 'super_echo', 'comment', 'comment_reply', 'message'];
@@ -194,6 +194,6 @@ Page({
   },
 
   goLogin() {
-    wx.navigateTo({ url: '/pages/login/login' });
+    goToLogin();
   }
 });

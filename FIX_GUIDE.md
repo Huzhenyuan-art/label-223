@@ -876,6 +876,127 @@ AUDIT_CACHE_REFRESH: '/api/audit/cache/refresh',
 
 ---
 
+## 问题：登录页面显示为一片空白，无法进行登录操作
+
+### 现象描述
+用户打开小程序或点击「登录 / 注册」后，进入登录页时页面完全空白，看不到标题、输入框和登录按钮，无法完成登录或注册。
+
+微信开发者工具控制台报错：
+```
+Page "pages/login/login" has not been registered yet.
+Error: timeout
+```
+
+### 排查过程
+
+#### 第一步：确认页面文件完整性
+检查 `miniprogram/pages/login/` 下四个文件（`login.js`、`login.wxml`、`login.wxss`、`login.json`）均存在，且 `app.json` 已注册 `pages/login/login` 路由。WXML 结构完整。
+
+#### 第二步：分析控制台报错含义
+`Page "pages/login/login" has not been registered yet` 表示：**路由已跳转到登录页，但 `login.js` 尚未执行 `Page({})` 完成页面注册**。这不是 CSS 或 WXML 问题，而是 **JS 代码包尚未加载完成就被强制跳转** 导致。
+
+#### 第三步：检查 pages 数组顺序与按需注入
+原 `app.json` 中 `pages/login/login` 排在第 **10** 位，入口页为 `pages/index/index`。在微信基础库 3.x 的**按需注入**机制下：
+- 启动时仅加载第一个页面（首页）的 JS 代码包
+- `App.onLaunch` 中 `wx.reLaunch('/pages/login/login')` 立即跳转
+- 登录页 JS 需异步下载注入，在超时时间内未完成 `Page()` 注册 → 白屏 + timeout
+
+#### 第四步：排除模块加载失败
+`login.js` 顶部 `require('request')` 会间接加载 `app.js` 已缓存的模块，本身无语法错误。进一步将 `request`/`config` 改为在 `submitAuth` 内懒加载，减少登录页首屏注册时的依赖链。
+
+#### 第五步：验证第一次修复为何无效
+此前尝试「延迟 50ms reLaunch」仍不足——登录页排在 pages 第 10 位，代码包较大时 50ms 内无法完成注入，仍会触发 `has not been registered yet`。
+
+### 根因分析
+
+| 根因 | 说明 |
+|------|------|
+| **登录页非入口 + 按需注入** | `login` 在 pages 数组第 10 位，启动时不预加载；`reLaunch` 跳转时 JS 未就绪 |
+| **Page 注册超时** | 框架等待 `Page()` 注册超时，报 `has not been registered yet` + `Error: timeout` |
+| **过早 reLaunch** | 未登录时 `onLaunch` 主动 `reLaunch` 到尚未加载代码包的页面 |
+| **鉴权条件不一致**（次要） | `ensureLogin` 仅查 token，与 `app.js` 双字段校验不一致 |
+
+### 修复方案
+
+#### 1. app.json — 将登录页设为入口页
+将 `pages/login/login` 移至 **pages 数组第一位**，确保小程序启动时优先加载并注册登录页：
+
+```json
+"pages": [
+  "pages/login/login",
+  "pages/index/index",
+  ...
+]
+```
+
+- **未登录用户**：直接落在登录页，无需 reLaunch，JS 已就绪
+- **已登录用户**：`onLaunch` 检测到有效会话后 `reLaunch` 到首页
+
+**文件**：`miniprogram/app.json`
+
+#### 2. app.js — 未登录时不再 reLaunch
+未登录时 `onLaunch` 仅调用 `onLogout({ redirect: false })` 清理本地状态，**不再跳转**（因为已在登录页）。已登录时 `reLaunch` 到 `/pages/index/index`。
+
+**文件**：`miniprogram/app.js`
+
+#### 3. login.js — 精简首屏依赖
+- 移除顶部 `require('request')` / `require('config')`，改为在 `submitAuth` 内懒加载
+- 移除 `async/await`，改用 `.then()` 链，兼容面更广
+- 已登录用户 `onShow` 时 `switchTab` 到首页
+
+**文件**：`miniprogram/pages/login/login.js`
+
+#### 4. util.js — 跳转前先预加载
+`redirectToLogin()` 在 `reLaunch` 前先调用 `wx.preloadPage()` 预加载登录页代码包，避免从其他页面跳转时再次出现注册超时。
+
+**文件**：`miniprogram/utils/util.js`
+
+#### 5. util.js — 统一鉴权（保留）
+`isAuthenticated()` 要求 `userInfo.id + authToken` 同时存在，与 `app.js` 保持一致。
+
+### 涉及文件清单
+| 文件 | 改动说明 |
+|------|---------|
+| `miniprogram/app.json` | 登录页移至 pages 数组第一位 |
+| `miniprogram/app.js` | 未登录不 reLaunch；已登录 reLaunch 到首页 |
+| `miniprogram/pages/login/login.js` | 懒加载 request/config；精简 onShow |
+| `miniprogram/utils/util.js` | redirectToLogin 增加 preloadPage；统一鉴权 |
+| `miniprogram/utils/request.js` | 401 跳转改用 redirectToLogin |
+| `miniprogram/pages/index/index.js` | 恢复标准 ensureLogin 逻辑 |
+| `miniprogram/pages/profile/profile.js` 等 | goLogin 统一入口 |
+
+### 验证方法
+
+#### 场景 A：冷启动未登录（核心场景）
+1. 清除小程序缓存
+2. 重新编译并打开小程序
+3. 预期：直接进入登录页，显示完整表单，控制台 **无** `has not been registered yet` 报错
+
+#### 场景 B：冷启动已登录
+1. 使用 `fogdao` / `password1` 登录成功后关闭小程序
+2. 重新打开
+3. 预期：短暂经过登录页后立即跳转「海洋流」Tab
+
+#### 场景 C：从其他页面跳转登录
+1. 401 或退出登录后从首页/岛屿页跳转登录
+2. 预期：preloadPage 后正常显示登录表单
+
+#### 场景 D：登录功能
+1. 输入 `fogdao` / `password1`，点击「登录并进入」
+2. 预期：登录成功，进入「海洋流」
+
+### 预防措施
+- **需要首屏展示的页面必须排在 pages 数组前列**，不能依赖 reLaunch 跳转到 pages 数组末尾的页面
+- **reLaunch 到非入口页面前**，先调用 `wx.preloadPage()` 预加载代码包
+- **看到 `Page has not been registered yet`** 时，优先检查 pages 顺序和按需注入，而非 CSS/WXML
+- **页面 JS 顶部 require 尽量精简**，重依赖懒加载到用户交互时再引入
+- **鉴权统一走 `isAuthenticated()`**，避免误判跳转
+
+### 补充说明（2026-06-16 二次修复）
+第一次修复（延迟 reLaunch + 统一鉴权）未能解决控制台 `Page has not been registered yet` 报错。根因是登录页在 pages 数组中排位靠后（第 10 位），按需注入下代码包未预加载。最终方案为 **登录页设为入口页 + preloadPage 兜底**。
+
+---
+
 ## 闂锛氱己灏戝鏍告儏鍐垫煡鐪嬪叆鍙ｄ笌鏁忔劅璇嶇鐞嗗叆鍙?
 ### 鐜拌薄鎻忚堪
 鐢ㄦ埛鍙嶉涓汉涓績锛堝矝灞跨┖闂达級缂哄皯涓や釜鍏抽敭鍔熻兘鍏ュ彛锛?1. 鏃犳硶鏌ョ湅鍐呭瀹℃牳鎯呭喌锛堝鏍歌褰曘€佺粺璁℃暟鎹瓑锛?2. 鏃犳硶绠＄悊鏁忔劅璇嶅簱锛堝崟涓坊鍔犮€佹壒閲忓鍏ャ€佺紪杈戝垹闄ょ瓑锛?

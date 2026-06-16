@@ -1,5 +1,6 @@
 {
   "pages": [
+    "pages/login/login",
     "pages/index/index",
     "pages/publish/publish",
     "pages/messages/messages",
@@ -9,7 +10,6 @@
     "pages/chat/chat",
     "pages/member/member",
     "pages/publicProfile/publicProfile",
-    "pages/login/login",
     "pages/favorites/favorites",
     "pages/groups/groups",
     "pages/groupCreate/groupCreate",

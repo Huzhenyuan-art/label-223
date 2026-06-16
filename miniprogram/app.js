@@ -1,6 +1,7 @@
 const socket = require('./utils/socket');
 const config = require('./config/index');
 const request = require('./utils/request');
+const { isAuthenticated, readAuthSession, redirectToLogin } = require('./utils/util');
 
 App({
   globalData: {
@@ -9,29 +10,32 @@ App({
     authToken: '',
     unreadCount: 0,
     unreadConversations: {},
-    unreadResonanceCount: 0
+    unreadResonanceCount: 0,
+    authBootstrapped: false
   },
 
   _socketHandlers: {},
 
   onLaunch() {
     try {
-      const userInfo = wx.getStorageSync('userInfo');
-      const authToken = wx.getStorageSync('authToken');
+      const session = readAuthSession();
 
-      if (userInfo && userInfo.id && authToken) {
+      if (isAuthenticated(session)) {
         this.globalData.isLogin = true;
-        this.globalData.userInfo = userInfo;
-        this.globalData.authToken = authToken;
-        socket.connect(authToken);
+        this.globalData.userInfo = session.userInfo;
+        this.globalData.authToken = session.authToken;
+        this.globalData.authBootstrapped = true;
+        socket.connect(session.authToken);
         this._bindSocketEvents();
+        wx.reLaunch({ url: '/pages/index/index' });
         return;
       }
 
-      this.onLogout({ redirect: true });
+      // 登录页已是入口页，仅需清理本地状态，无需 reLaunch
+      this.onLogout({ redirect: false });
     } catch (error) {
       console.error('[app] onLaunch error:', error);
-      this.onLogout({ redirect: true });
+      this.onLogout({ redirect: false });
     }
   },
 
@@ -137,6 +141,7 @@ App({
     this.globalData.unreadCount = 0;
     this.globalData.unreadConversations = {};
     this.globalData.unreadResonanceCount = 0;
+    this.globalData.authBootstrapped = true;
 
     try {
       wx.removeStorageSync('userInfo');
@@ -156,20 +161,7 @@ App({
     socket.disconnect();
 
     if (redirect) {
-      try {
-        wx.reLaunch({ url: '/pages/login/login' });
-      } catch (e) {
-        console.error('[app] redirect to login error:', e);
-        try {
-          wx.redirectTo({ url: '/pages/login/login' });
-        } catch (e2) {
-          try {
-            wx.navigateTo({ url: '/pages/login/login' });
-          } catch (e3) {
-            console.error('[app] all redirect methods failed');
-          }
-        }
-      }
+      redirectToLogin({ replace: true });
     }
   }
 });
