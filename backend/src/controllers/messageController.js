@@ -2,6 +2,7 @@ const { Message, User, RevealDecision, Post, Resonance } = require('../models');
 const logger = require('../utils/logger');
 const { sendToUser, pushUnread } = require('../websocket');
 const { auditMultipleFields } = require('../services/auditService');
+const notificationService = require('../services/notificationService');
 
 const getRevealStatus = async (conversationId, userId, otherUserId) => {
   const [counts, decision] = await Promise.all([
@@ -347,6 +348,11 @@ exports.requestReveal = async (req, res) => {
       });
     }
 
+    const existingDecision = await RevealDecision.findOne({ conversationId }).lean();
+    const existingAgreedBy = new Set((existingDecision?.agreedBy || []).map((id) => id.toString()));
+    const userAlreadyAgreed = existingAgreedBy.has(userId.toString());
+    const otherAlreadyAgreed = existingAgreedBy.has(otherUserId.toString());
+
     const decision = await RevealDecision.findOneAndUpdate(
       { conversationId },
       {
@@ -367,6 +373,27 @@ exports.requestReveal = async (req, res) => {
       decision.revealed = true;
       decision.unlockedAt = new Date();
       await decision.save();
+
+      notificationService.createRevealSuccessNotification(
+        userId,
+        otherUserId,
+        conversationId,
+        ''
+      ).catch((e) => logger.error(`Create reveal success notification error: ${e.message}`));
+
+      notificationService.createRevealSuccessNotification(
+        otherUserId,
+        userId,
+        conversationId,
+        ''
+      ).catch((e) => logger.error(`Create reveal success notification error: ${e.message}`));
+    } else if (!userAlreadyAgreed) {
+      notificationService.createRevealRequestNotification(
+        otherUserId,
+        userId,
+        conversationId,
+        ''
+      ).catch((e) => logger.error(`Create reveal request notification error: ${e.message}`));
     }
 
     const latest = await getRevealStatus(conversationId, userId, otherUserId);

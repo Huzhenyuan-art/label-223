@@ -1,0 +1,65 @@
+<view class="container">
+  <view class="header">
+    <view class="title-row">
+      <view class="page-title">站内通知</view>
+      <view class="read-all" bindtap="markAllAsRead" wx:if="{{unreadCounts.total > 0}}">全部已读</view>
+    </view>
+    <view class="subtitle">共 {{unreadCounts.total}} 条未读通知</view>
+  </view>
+
+  <scroll-view class="tabs" scroll-x="{{true}}" show-scrollbar="{{false}}">
+    <view class="tabs-inner">
+      <view
+        wx:for="{{tabs}}"
+        wx:key="key"
+        class="tab-item {{activeTab === item.key ? 'active' : ''}}"
+        data-key="{{item.key}}"
+        bindtap="switchTab"
+      >
+        {{item.label}}
+        <view wx:if="{{item.key === 'resonance' && unreadCounts.resonance > 0}}" class="tab-dot">{{unreadCounts.resonance}}</view>
+        <view wx:if="{{item.key === 'comment' && unreadCounts.comment > 0}}" class="tab-dot">{{unreadCounts.comment}}</view>
+        <view wx:if="{{item.key === 'super_echo' && unreadCounts.super_echo > 0}}" class="tab-dot">{{unreadCounts.super_echo}}</view>
+        <view wx:if="{{item.key === 'reveal' && (unreadCounts.reveal_request + unreadCounts.reveal_success) > 0}}" class="tab-dot">{{unreadCounts.reveal_request + unreadCounts.reveal_success}}</view>
+      </view>
+    </view>
+  </scroll-view>
+
+  <block wx:if="{{notifications.length > 0}}">
+    <block wx:for="{{notifications}}" wx:key="_id">
+      <view
+        class="notification-card ocean-card {{!item.read ? 'unread' : ''}}"
+        data-item="{{item}}"
+        bindtap="onNotificationTap"
+      >
+        <view class="notification-icon icon-{{item.iconType}}">
+          <view class="icon-inner">
+            <block wx:if="{{item.iconType === 'resonance'}}">♥</block>
+            <block wx:elif="{{item.iconType === 'comment'}}">💬</block>
+            <block wx:elif="{{item.iconType === 'super_echo'}}">🔄</block>
+            <block wx:elif="{{item.iconType === 'reveal'}}">👤</block>
+            <block wx:else>🔔</block>
+          </view>
+        </view>
+
+        <view class="notification-content">
+          <view class="notification-title">{{item.title}}</view>
+          <view class="notification-desc">{{item.desc}}</view>
+          <view class="notification-time">{{item.timeAgo}}</view>
+        </view>
+
+        <view wx:if="{{!item.read}}" class="unread-dot"></view>
+      </view>
+    </block>
+
+    <view wx:if="{{loading && !hasMore}}" class="load-more">加载中...</view>
+    <view wx:elif="{{!hasMore && notifications.length > 0}}" class="load-more">没有更多了</view>
+  </block>
+
+  <view wx:elif="{{!loading}}" class="empty">
+    <view class="empty-icon">🔔</view>
+    <view class="empty-text">暂无通知</view>
+  </view>
+
+  <view wx:if="{{loading && notifications.length === 0}}" class="empty">正在加载通知...</view>
+</view>

@@ -11,6 +11,15 @@ App({
     unreadCount: 0,
     unreadConversations: {},
     unreadResonanceCount: 0,
+    unreadNotificationCount: 0,
+    unreadNotificationsByType: {
+      resonance: 0,
+      comment: 0,
+      super_echo: 0,
+      reveal_request: 0,
+      reveal_success: 0,
+      total: 0
+    },
     authBootstrapped: false
   },
 
@@ -61,20 +70,26 @@ App({
       this.refreshResonanceCount();
     };
 
-    this._socketHandlers = { onUnread, onMessage, onAuth, onResonanceNotify };
+    const onNotificationUnread = (data) => {
+      this._applyNotificationUnread(data);
+    };
+
+    this._socketHandlers = { onUnread, onMessage, onAuth, onResonanceNotify, onNotificationUnread };
 
     socket.on('unread', onUnread);
     socket.on('message', onMessage);
     socket.on('auth', onAuth);
     socket.on('resonanceNotify', onResonanceNotify);
+    socket.on('notification_unread', onNotificationUnread);
   },
 
   _unbindSocketEvents() {
-    const { onUnread, onMessage, onAuth, onResonanceNotify } = this._socketHandlers;
+    const { onUnread, onMessage, onAuth, onResonanceNotify, onNotificationUnread } = this._socketHandlers;
     socket.off('unread', onUnread);
     socket.off('message', onMessage);
     socket.off('auth', onAuth);
     socket.off('resonanceNotify', onResonanceNotify);
+    socket.off('notification_unread', onNotificationUnread);
     this._socketHandlers = {};
   },
 
@@ -118,6 +133,31 @@ App({
     }
   },
 
+  _applyNotificationUnread(data) {
+    if (!data) return;
+    this.globalData.unreadNotificationCount = data.total || 0;
+    this.globalData.unreadNotificationsByType = {
+      resonance: data.resonance || 0,
+      comment: data.comment || 0,
+      super_echo: data.super_echo || 0,
+      reveal_request: data.reveal_request || 0,
+      reveal_success: data.reveal_success || 0,
+      total: data.total || 0
+    };
+  },
+
+  async refreshNotificationCount() {
+    try {
+      const data = await request.get(config.API.NOTIFICATIONS_UNREAD_BY_TYPE);
+      if (data) {
+        this._applyNotificationUnread(data);
+      }
+      return data?.total || 0;
+    } catch (e) {
+      return 0;
+    }
+  },
+
   onLoginSuccess(session) {
     const userInfo = session?.user;
     const authToken = session?.token;
@@ -145,6 +185,15 @@ App({
     this.globalData.unreadCount = 0;
     this.globalData.unreadConversations = {};
     this.globalData.unreadResonanceCount = 0;
+    this.globalData.unreadNotificationCount = 0;
+    this.globalData.unreadNotificationsByType = {
+      resonance: 0,
+      comment: 0,
+      super_echo: 0,
+      reveal_request: 0,
+      reveal_success: 0,
+      total: 0
+    };
     this.globalData.authBootstrapped = true;
 
     try {

@@ -5,6 +5,7 @@ const logger = require('../utils/logger');
 const config = require('../config');
 const { verifyToken } = require('../utils/auth');
 const { auditMultipleFields } = require('../services/auditService');
+const notificationService = require('../services/notificationService');
 
 const clients = new Map();
 
@@ -64,6 +65,9 @@ const setupWebSocket = (server) => {
           ws.send(JSON.stringify({ type: 'auth', success: true, userId: authedUserId }));
           logger.info(`WebSocket auth success: ${authedUserId}`);
           pushUnread(authedUserId).catch((e) => logger.error(`Push unread on auth error: ${e.message}`));
+          notificationService.pushNotificationUnread(authedUserId).catch((e) =>
+            logger.error(`Push notification unread on auth error: ${e.message}`)
+          );
           return;
         }
 

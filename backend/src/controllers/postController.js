@@ -1,9 +1,10 @@
 const mongoose = require('mongoose');
-const { Post, Resonance, Comment, ResonanceNotification, TagChannel, UserTagSubscription } = require('../models');
+const { Post, Resonance, Comment, ResonanceNotification, TagChannel, UserTagSubscription, User } = require('../models');
 const logger = require('../utils/logger');
 const config = require('../config');
 const { sendToUser } = require('../websocket');
 const { auditMultipleFields, auditContent } = require('../services/auditService');
+const notificationService = require('../services/notificationService');
 
 const sanitizeTags = (tags) => {
   const list = Array.isArray(tags) ? tags : [];
@@ -201,6 +202,14 @@ exports.createSuperEcho = async (req, res) => {
       } catch (e) {
         logger.error(`Push resonance notify error: ${e.message}`);
       }
+
+      notificationService.createSuperEchoNotification(
+        parent.author,
+        req.userId,
+        parent._id,
+        post._id,
+        post.dynamicTag
+      ).catch((e) => logger.error(`Create super echo notification error: ${e.message}`));
     }
 
     logger.info(`Super echo created: ${post._id} -> ${parent._id}, auditAction: ${auditResult.action}`);
@@ -244,6 +253,15 @@ exports.toggleResonance = async (req, res) => {
 
     await Resonance.create({ post: postId, user: req.userId });
     await Post.findByIdAndUpdate(postId, { $inc: { resonanceCount: 1 } });
+
+    if (post.author.toString() !== req.userId.toString()) {
+      notificationService.createResonanceNotification(
+        post.author,
+        req.userId,
+        post._id,
+        ''
+      ).catch((e) => logger.error(`Create resonance notification error: ${e.message}`));
+    }
 
     return res.json({
       code: 0,
@@ -306,6 +324,17 @@ exports.createComment = async (req, res) => {
     await Post.findByIdAndUpdate(postId, { $inc: { commentCount: 1 } });
 
     await comment.populate('user', 'nickname avatar');
+
+    if (post.author.toString() !== req.userId.toString()) {
+      notificationService.createCommentNotification(
+        post.author,
+        req.userId,
+        post._id,
+        comment._id,
+        finalFields.dynamicTag,
+        finalFields.content
+      ).catch((e) => logger.error(`Create comment notification error: ${e.message}`));
+    }
 
     logger.info(`Comment created: ${comment._id} on ${postId}, auditAction: ${auditResult.action}`);
 
@@ -379,6 +408,32 @@ exports.createCommentReply = async (req, res) => {
 
     await reply.populate('user', 'nickname avatar');
     await reply.populate('parentComment', '_id');
+
+    const notifiedUsers = new Set();
+    notifiedUsers.add(req.userId.toString());
+
+    if (post.author.toString() !== req.userId.toString()) {
+      notificationService.createCommentNotification(
+        post.author,
+        req.userId,
+        post._id,
+        reply._id,
+        finalFields.dynamicTag,
+        finalFields.content
+      ).catch((e) => logger.error(`Create comment notification error: ${e.message}`));
+      notifiedUsers.add(post.author.toString());
+    }
+
+    if (parentComment.user.toString() !== req.userId.toString() && !notifiedUsers.has(parentComment.user.toString())) {
+      notificationService.createCommentNotification(
+        parentComment.user,
+        req.userId,
+        post._id,
+        reply._id,
+        finalFields.dynamicTag,
+        finalFields.content
+      ).catch((e) => logger.error(`Create comment reply notification error: ${e.message}`));
+    }
 
     logger.info(`Comment reply created: ${reply._id} -> ${parentCommentId}, auditAction: ${auditResult.action}`);
 

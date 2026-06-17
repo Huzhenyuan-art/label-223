@@ -32,6 +32,19 @@
     </view>
   </view>
 
+  <view class="ocean-card notification-entry-card" bindtap="goNotificationCenter">
+    <view class="row-between">
+      <view class="section-title">站内通知中心</view>
+      <view class="entry-arrow">›</view>
+    </view>
+    <view class="notification-entry-desc">
+      共鸣、回声、合鸣、身份揭示申请等全部通知
+    </view>
+    <view wx:if="{{unreadNotificationCount > 0}}" class="notification-entry-badge">
+      {{unreadNotificationCount}} 条未读
+    </view>
+  </view>
+
   <view class="ocean-card">
     <view class="row-between">
       <view class="section-title">合鸣通知</view>

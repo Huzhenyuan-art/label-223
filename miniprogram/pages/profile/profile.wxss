@@ -154,3 +154,35 @@
   font-size: 24rpx;
   font-weight: 500;
 }
+
+.notification-entry-card {
+  position: relative;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.notification-entry-card:active {
+  opacity: 0.8;
+}
+
+.entry-arrow {
+  font-size: 36rpx;
+  color: #6e8794;
+  font-weight: 300;
+}
+
+.notification-entry-desc {
+  margin-top: 8rpx;
+  font-size: 24rpx;
+  color: #6e8794;
+}
+
+.notification-entry-badge {
+  display: inline-block;
+  margin-top: 16rpx;
+  padding: 6rpx 16rpx;
+  background: linear-gradient(135deg, #0d6587 0%, #0a5d7b 100%);
+  color: #ffffff;
+  font-size: 22rpx;
+  border-radius: 999rpx;
+}

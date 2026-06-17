@@ -36,6 +36,12 @@ const config = {
     RESONANCE_NOTIFICATIONS_UNREAD: '/api/users/me/resonance-notifications/unread-count',
     RESONANCE_NOTIFICATIONS_READ: '/api/users/me/resonance-notifications/read',
 
+    NOTIFICATIONS: '/api/notifications',
+    NOTIFICATIONS_UNREAD: '/api/notifications/unread',
+    NOTIFICATIONS_UNREAD_BY_TYPE: '/api/notifications/unread-by-type',
+    NOTIFICATIONS_READ: '/api/notifications/read',
+    NOTIFICATIONS_READ_ALL: '/api/notifications/read-all',
+
     PAYMENT_PLANS: '/api/payments/plans',
     CHECKOUT: '/api/payments/checkout',
     MY_ORDERS: '/api/payments/orders/me',

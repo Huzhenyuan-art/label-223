@@ -4,6 +4,7 @@
     "pages/index/index",
     "pages/publish/publish",
     "pages/messages/messages",
+    "pages/notifications/notifications",
     "pages/profile/profile",
     "pages/detail/detail",
     "pages/member/member",

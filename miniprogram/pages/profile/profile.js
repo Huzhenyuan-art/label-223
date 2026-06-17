@@ -13,6 +13,7 @@ Page({
     myPosts: [],
     resonanceNotifications: [],
     unreadResonanceCount: 0,
+    unreadNotificationCount: 0,
     resonanceNotifyLoading: false,
     loading: false,
     loadFailed: false
@@ -31,6 +32,7 @@ Page({
         myPosts: [],
         resonanceNotifications: [],
         unreadResonanceCount: 0,
+        unreadNotificationCount: 0,
         resonanceNotifyLoading: false,
         loading: false,
         loadFailed: false
@@ -38,6 +40,7 @@ Page({
       return;
     }
     this.loadData();
+    this.refreshNotificationCount();
   },
 
   async loadData() {
@@ -107,6 +110,28 @@ Page({
 
   goMemberPage() {
     safeNavigateTo('/pages/member/member');
+  },
+
+  goNotificationCenter() {
+    safeNavigateTo('/pages/notifications/notifications');
+  },
+
+  async refreshNotificationCount() {
+    try {
+      const app = getApp();
+      const count = app.globalData.unreadNotificationCount || 0;
+      this.setData({ unreadNotificationCount: count });
+
+      const data = await request.get(config.API.NOTIFICATIONS_UNREAD);
+      const newCount = data?.count || 0;
+      this.setData({ unreadNotificationCount: newCount });
+
+      if (app) {
+        app.globalData.unreadNotificationCount = newCount;
+      }
+    } catch (error) {
+      // ignore
+    }
   },
 
   goFavorites() {
