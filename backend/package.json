@@ -11,25 +11,34 @@
     "test:unit": "jest tests/unit --forceExit --detectOpenHandles --runInBand",
     "test:integration": "jest tests/integration --forceExit --detectOpenHandles --runInBand",
     "test:coverage": "jest --coverage --forceExit --detectOpenHandles --runInBand",
-    "test:watch": "jest --watchAll --forceExit --detectOpenHandles"
+    "test:watch": "jest --watchAll --forceExit --detectOpenHandles",
+    "env:check": "node scripts/check-env.js",
+    "health:check": "node scripts/healthcheck.js",
+    "wait:db": "node scripts/wait-for-mongo.js",
+    "start:prod": "node scripts/check-env.js && node src/app.js",
+    "start:with-seed": "npm run wait:db && npm run seed && npm run start"
+  },
+  "engines": {
+    "node": ">=18.17.0 <21",
+    "npm": ">=9"
   },
   "dependencies": {
-    "bcryptjs": "^3.0.2",
-    "cors": "^2.8.5",
-    "dotenv": "^16.4.5",
-    "express": "^4.19.2",
-    "express-validator": "^7.2.1",
-    "jsonwebtoken": "^9.0.2",
-    "mongoose": "^8.10.0",
-    "multer": "^1.4.5-lts.1",
-    "ws": "^8.18.0",
-    "winston": "^3.17.0"
+    "bcryptjs": "3.0.3",
+    "cors": "2.8.6",
+    "dotenv": "16.6.1",
+    "express": "4.22.2",
+    "express-validator": "7.3.2",
+    "jsonwebtoken": "9.0.3",
+    "mongoose": "8.24.0",
+    "multer": "1.4.5-lts.2",
+    "winston": "3.19.0",
+    "ws": "8.21.0"
   },
   "devDependencies": {
-    "jest": "^29.7.0",
-    "supertest": "^7.0.0",
-    "mongodb-memory-server": "^9.4.0",
-    "nodemon": "^3.1.9"
+    "jest": "29.7.0",
+    "supertest": "7.2.2",
+    "mongodb-memory-server": "9.5.0",
+    "nodemon": "3.1.14"
   },
   "jest": {
     "testEnvironment": "node",
@@ -39,8 +48,10 @@
     "testMatch": [
       "**/tests/**/*.test.js"
     ],
-    "testTimeout": 30000,
+    "testTimeout": 60000,
     "maxWorkers": 1,
-    "verbose": true
+    "verbose": true,
+    "globalSetup": null,
+    "globalTeardown": null
   }
 }

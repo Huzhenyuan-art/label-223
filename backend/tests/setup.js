@@ -4,7 +4,15 @@ const { MongoMemoryServer } = require('mongodb-memory-server');
 let mongoServer;
 
 beforeAll(async () => {
-  mongoServer = await MongoMemoryServer.create();
+  mongoServer = await MongoMemoryServer.create({
+    instance: {
+      port: 27017,
+      dbName: 'echo_island_test'
+    },
+    binary: {
+      version: '7.0.0'
+    }
+  });
   const mongoUri = mongoServer.getUri();
 
   process.env.MONGO_URI = mongoUri;
@@ -18,9 +26,10 @@ beforeAll(async () => {
   }
 
   await mongoose.connect(mongoUri, {
-    serverSelectionTimeoutMS: 5000
+    serverSelectionTimeoutMS: 30000,
+    socketTimeoutMS: 45000
   });
-}, 60000);
+}, 120000);
 
 afterEach(async () => {
   if (mongoose.connection.readyState !== 0) {

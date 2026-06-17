@@ -7,9 +7,28 @@ build
 .idea
 *.local
 
+.env
+.env.local
+.env.*.local
+.env.production
+.env.development
+
 backend/node_modules
 backend/dist
 backend/build
+backend/.env
+backend/.env.local
+backend/uploads
+backend/logs
 
 miniprogram/dist
 miniprogram/build
+
+coverage
+.nyc_output
+
+*.log
+logs/
+*.tmp
+*.swp
+
