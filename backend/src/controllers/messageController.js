@@ -4,6 +4,8 @@ const { sendToUser, pushUnread } = require('../websocket');
 const { auditMultipleFields } = require('../services/auditService');
 const notificationService = require('../services/notificationService');
 
+const AUTO_REVEAL_HOURS = 48;
+
 const getRevealStatus = async (conversationId, userId, otherUserId) => {
   const [counts, decision] = await Promise.all([
     Message.aggregate([
@@ -19,6 +21,48 @@ const getRevealStatus = async (conversationId, userId, otherUserId) => {
   const eligible = myCount >= 3 && otherCount >= 3;
 
   const agreedBy = new Set((decision?.agreedBy || []).map((id) => id.toString()));
+  const myAgreed = agreedBy.has(userId.toString());
+  const otherAgreed = agreedBy.has(otherUserId.toString());
+
+  let revealed = Boolean(decision?.revealed);
+  let unlockedAt = decision?.unlockedAt || null;
+  const requestedAt = decision?.requestedAt || null;
+
+  if (!revealed && myAgreed && !otherAgreed && requestedAt) {
+    const deadline = new Date(requestedAt.getTime() + AUTO_REVEAL_HOURS * 60 * 60 * 1000);
+    if (new Date() >= deadline) {
+      await RevealDecision.updateOne(
+        { conversationId },
+        { $addToSet: { agreedBy: otherUserId }, $set: { revealed: true, unlockedAt: new Date() } }
+      );
+      revealed = true;
+      unlockedAt = new Date();
+
+      notificationService.createRevealSuccessNotification(
+        userId,
+        otherUserId,
+        conversationId,
+        ''
+      ).catch((e) => logger.error(`Auto reveal success notification error: ${e.message}`));
+
+      notificationService.createRevealSuccessNotification(
+        otherUserId,
+        userId,
+        conversationId,
+        ''
+      ).catch((e) => logger.error(`Auto reveal success notification error: ${e.message}`));
+
+      const revealPayload = { type: 'reveal', data: { conversationId, revealed: true } };
+      sendToUser(userId.toString(), revealPayload);
+      sendToUser(otherUserId.toString(), revealPayload);
+    }
+  }
+
+  const waitingForOther = myAgreed && !otherAgreed && !revealed;
+  const otherRequestedReveal = otherAgreed && !myAgreed && !revealed;
+  const autoRevealDeadline = (!revealed && requestedAt && waitingForOther)
+    ? new Date(requestedAt.getTime() + AUTO_REVEAL_HOURS * 60 * 60 * 1000)
+    : null;
 
   const tempNicknamesRaw = decision?.tempNicknames instanceof Map
     ? Object.fromEntries(decision.tempNicknames)
@@ -32,10 +76,15 @@ const getRevealStatus = async (conversationId, userId, otherUserId) => {
     eligible,
     myCount,
     otherCount,
-    myAgreed: agreedBy.has(userId.toString()),
-    otherAgreed: agreedBy.has(otherUserId.toString()),
-    revealed: Boolean(decision?.revealed),
-    unlockedAt: decision?.unlockedAt || null,
+    myAgreed,
+    otherAgreed,
+    revealed,
+    unlockedAt,
+    requestedAt,
+    waitingForOther,
+    otherRequestedReveal,
+    autoRevealDeadline,
+    autoRevealHours: AUTO_REVEAL_HOURS,
     tempNicknames
   };
 };
@@ -353,16 +402,22 @@ exports.requestReveal = async (req, res) => {
     const userAlreadyAgreed = existingAgreedBy.has(userId.toString());
     const otherAlreadyAgreed = existingAgreedBy.has(otherUserId.toString());
 
+    const updateOps = {
+      $setOnInsert: {
+        users: [userId, otherUserId],
+        revealed: false,
+        unlockedAt: null
+      },
+      $addToSet: { agreedBy: userId }
+    };
+
+    if (!existingDecision || !existingDecision.requestedAt) {
+      updateOps.$set = { requestedAt: new Date() };
+    }
+
     const decision = await RevealDecision.findOneAndUpdate(
       { conversationId },
-      {
-        $setOnInsert: {
-          users: [userId, otherUserId],
-          revealed: false,
-          unlockedAt: null
-        },
-        $addToSet: { agreedBy: userId }
-      },
+      updateOps,
       { upsert: true, new: true }
     );
 

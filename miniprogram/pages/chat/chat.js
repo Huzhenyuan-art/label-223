@@ -19,10 +19,12 @@ Page({
     loading: false,
     scrollAnchor: '',
     wsConnected: false,
-    sending: false
+    sending: false,
+    autoRevealCountdown: ''
   },
 
   _socketHandlers: {},
+  _autoRevealTimer: null,
 
   onLoad(options) {
     this.setData({
@@ -50,11 +52,13 @@ Page({
 
   onHide() {
     this._sendReadAck();
+    this._stopAutoRevealTimer();
   },
 
   onUnload() {
     this._sendReadAck();
     this._unbindSocketEvents();
+    this._stopAutoRevealTimer();
   },
 
   bindField(event) {
@@ -98,7 +102,10 @@ Page({
       if (!data || data.conversationId !== this.data.conversationId) return;
       this.setData({ reveal: data });
       if (data.revealed) {
+        this._stopAutoRevealTimer();
         this.loadMessages();
+      } else {
+        this._updateAutoRevealTimer(data);
       }
     };
 
@@ -201,7 +208,10 @@ Page({
         scrollAnchor: last ? `msg-${last._id}` : ''
       });
 
+      this._updateAutoRevealTimer(data.reveal);
+
       if (data.reveal?.revealed) {
+        this._stopAutoRevealTimer();
         try {
           const publicInfo = await request.get(`${config.API.USER_PUBLIC_PREFIX}/${this.data.otherUserId}`);
           if (publicInfo?.profile?.nickname) {
@@ -270,8 +280,12 @@ Page({
         otherUserId: this.data.otherUserId
       });
       this.setData({ reveal });
+      this._updateAutoRevealTimer(reveal);
       wx.showToast({ title: reveal.revealed ? '身份已揭示' : '已发送揭示申请', icon: 'none' });
-      this.loadMessages();
+      if (reveal.revealed) {
+        this._stopAutoRevealTimer();
+        this.loadMessages();
+      }
     } catch (error) {
       showFriendlyError(error, '揭示申请失败，请稍后重试');
     }
@@ -344,5 +358,48 @@ Page({
     } catch (error) {
       showFriendlyError(error, '设置失败，请稍后重试');
     }
+  },
+
+  _formatCountdown(ms) {
+    if (ms <= 0) return '';
+    const totalSeconds = Math.floor(ms / 1000);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    const pad = (n) => (n < 10 ? `0${n}` : `${n}`);
+    return `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
+  },
+
+  _updateAutoRevealTimer(reveal) {
+    this._stopAutoRevealTimer();
+
+    if (!reveal || reveal.revealed || !reveal.waitingForOther || !reveal.autoRevealDeadline) {
+      this.setData({ autoRevealCountdown: '' });
+      return;
+    }
+
+    const deadline = new Date(reveal.autoRevealDeadline).getTime();
+
+    const tick = () => {
+      const remaining = deadline - Date.now();
+      if (remaining <= 0) {
+        this.setData({ autoRevealCountdown: '' });
+        this._stopAutoRevealTimer();
+        this.loadMessages();
+        return;
+      }
+      this.setData({ autoRevealCountdown: this._formatCountdown(remaining) });
+    };
+
+    tick();
+    this._autoRevealTimer = setInterval(tick, 1000);
+  },
+
+  _stopAutoRevealTimer() {
+    if (this._autoRevealTimer) {
+      clearInterval(this._autoRevealTimer);
+      this._autoRevealTimer = null;
+    }
+    this.setData({ autoRevealCountdown: '' });
   }
 });

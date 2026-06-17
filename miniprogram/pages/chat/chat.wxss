@@ -170,3 +170,35 @@
   font-size: 28rpx;
   border-radius: 12rpx;
 }
+
+.reveal-waiting {
+  background: #f0f8fc;
+  border-radius: 14rpx;
+  padding: 16rpx 20rpx;
+  border: 2rpx solid #c4dfe9;
+}
+
+.waiting-text {
+  color: #0d5d7a;
+  font-size: 26rpx;
+  font-weight: 600;
+}
+
+.waiting-countdown {
+  color: #6e8794;
+  font-size: 22rpx;
+  margin-top: 6rpx;
+}
+
+.reveal-requested {
+  background: #eef6fa;
+  border-radius: 14rpx;
+  padding: 16rpx 20rpx;
+  border: 2rpx solid #b4d8e8;
+}
+
+.requested-text {
+  color: #0a5f7e;
+  font-size: 26rpx;
+  font-weight: 600;
+}

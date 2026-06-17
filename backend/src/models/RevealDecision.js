@@ -29,6 +29,10 @@ const revealDecisionSchema = new mongoose.Schema(
       type: Date,
       default: null
     },
+    requestedAt: {
+      type: Date,
+      default: null
+    },
     tempNicknames: {
       type: Map,
       of: String,

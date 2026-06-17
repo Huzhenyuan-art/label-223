@@ -5,8 +5,18 @@
       <view class="chat-state">{{reveal && reveal.revealed ? '身份已揭示' : '动态标签对话中'}} {{!wsConnected ? '(连接中…)' : ''}}</view>
     </view>
 
-    <view wx:if="{{reveal && !reveal.revealed}}" class="mt-12 muted">
+    <view wx:if="{{reveal && !reveal.revealed && !reveal.waitingForOther && !reveal.otherRequestedReveal}}" class="mt-12 muted">
       你 {{reveal.myCount || 0}} 条，对方 {{reveal.otherCount || 0}} 条。双方≥3条可申请揭示。
+    </view>
+
+    <view wx:if="{{reveal && reveal.waitingForOther}}" class="reveal-waiting mt-12">
+      <view class="waiting-text">已申请揭示，等待对方回应…</view>
+      <view wx:if="{{autoRevealCountdown}}" class="waiting-countdown">对方 {{autoRevealCountdown}} 内未响应将自动视为同意</view>
+    </view>
+
+    <view wx:if="{{reveal && reveal.otherRequestedReveal}}" class="reveal-requested mt-12">
+      <view class="requested-text">对方已申请揭示身份</view>
+      <button class="btn-secondary mt-8" bindtap="requestReveal">同意揭示</button>
     </view>
 
     <view wx:if="{{myTempNickname && !reveal.revealed}}" class="mt-8 muted">
@@ -14,7 +24,7 @@
     </view>
 
     <button
-      wx:if="{{reveal && reveal.eligible && !reveal.revealed}}"
+      wx:if="{{reveal && reveal.eligible && !reveal.revealed && !reveal.myAgreed}}"
       class="btn-secondary mt-16"
       bindtap="requestReveal"
     >
