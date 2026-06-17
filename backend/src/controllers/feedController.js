@@ -20,11 +20,14 @@ const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 const attachInteractionState = async (posts, userId) => {
   if (!userId || !posts.length) {
-    return posts.map((post) => ({
-      ...post,
-      isResonated: false,
-      isFavorited: false
-    }));
+    return {
+      list: posts.map((post) => ({
+        ...post,
+        isResonated: false,
+        isFavorited: false
+      })),
+      viewerPremium: false
+    };
   }
 
   const ids = posts.map((item) => item._id);
@@ -33,7 +36,7 @@ const attachInteractionState = async (posts, userId) => {
     Resonance.find({ user: userId, post: { $in: ids } })
       .select('post')
       .lean(),
-    User.findById(userId).select('favoritePosts').lean()
+    User.findById(userId).select('favoritePosts premium').lean()
   ]);
 
   const resonanceSet = new Set(
@@ -43,11 +46,21 @@ const attachInteractionState = async (posts, userId) => {
     (user?.favoritePosts || []).map((item) => item.toString())
   );
 
-  return posts.map((post) => ({
-    ...post,
-    isResonated: resonanceSet.has(post._id.toString()),
-    isFavorited: favoriteSet.has(post._id.toString())
-  }));
+  const now = Date.now();
+  const viewerPremium = Boolean(
+    user?.premium?.isActive &&
+    user.premium.expireAt &&
+    new Date(user.premium.expireAt).getTime() > now
+  );
+
+  return {
+    list: posts.map((post) => ({
+      ...post,
+      isResonated: resonanceSet.has(post._id.toString()),
+      isFavorited: favoriteSet.has(post._id.toString())
+    })),
+    viewerPremium
+  };
 };
 
 const getLegacyOceanFlow = async (req, res) => {
@@ -71,7 +84,7 @@ const getLegacyOceanFlow = async (req, res) => {
   }
 
   const basePosts = await Post.find(filter)
-    .populate('author', 'nickname avatar')
+    .populate('author', 'nickname avatar tagSkin')
     .sort({ createdAt: -1 })
     .limit(120)
     .lean();
@@ -91,7 +104,7 @@ const getLegacyOceanFlow = async (req, res) => {
 
   const start = (page - 1) * limit;
   const paged = ranked.slice(start, start + limit);
-  const enriched = await attachInteractionState(paged, req.userId);
+  const { list: enriched, viewerPremium } = await attachInteractionState(paged, req.userId);
 
   return res.json({
     code: 0,
@@ -99,6 +112,7 @@ const getLegacyOceanFlow = async (req, res) => {
       mode,
       preferredTags,
       list: enriched,
+      viewerPremium,
       pagination: {
         page,
         limit,
@@ -131,6 +145,7 @@ exports.getOceanFlow = async (req, res) => {
         mode: result.mode,
         preferredTags: result.preferredTags,
         list: result.list,
+        viewerPremium: result.viewerPremium,
         pagination: result.pagination,
         fromCache: result.fromCache
       }
@@ -205,7 +220,7 @@ const getLegacyHotTags = async (req, res) => {
         status: 'published',
         createdAt: { $gte: twentyFourHoursAgo }
       })
-        .populate('author', 'nickname avatar')
+        .populate('author', 'nickname avatar tagSkin')
         .lean();
 
       let featuredOriginPosts = [];
@@ -319,6 +334,7 @@ exports.searchDeepSea = async (req, res) => {
       code: 0,
       data: {
         list: result.list,
+        viewerPremium: result.viewerPremium,
         query: result.query,
         pagination: result.pagination
       }
@@ -334,7 +350,7 @@ exports.getPostDetail = async (req, res) => {
     const postId = req.params.id;
 
     const post = await Post.findById(postId)
-      .populate('author', 'nickname avatar')
+      .populate('author', 'nickname avatar tagSkin')
       .lean();
     if (!post) {
       return res.status(404).json({ code: 1, message: 'Post not found' });
@@ -377,19 +393,23 @@ exports.getPostDetail = async (req, res) => {
         )
       }));
 
-    const [enrichedPost] = await attachInteractionState(
+    const [enrichedResult] = await attachInteractionState(
       [post],
       req.userId
     );
-    const enrichedSuperEchoes = await attachInteractionState(
+    const enrichedPost = enrichedResult.list[0];
+    const viewerPremium = enrichedResult.viewerPremium;
+    const enrichedSuperEchoesResult = await attachInteractionState(
       superEchoes,
       req.userId
     );
+    const enrichedSuperEchoes = enrichedSuperEchoesResult.list;
 
     return res.json({
       code: 0,
       data: {
         post: enrichedPost,
+        viewerPremium,
         comments,
         superEchoes: enrichedSuperEchoes
       }

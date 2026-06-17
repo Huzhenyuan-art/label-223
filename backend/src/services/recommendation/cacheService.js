@@ -21,11 +21,14 @@ const generateCacheKey = (mode, userId, tags, keyword, page, limit) => {
 
 const attachInteractionState = async (posts, userId) => {
   if (!userId || !posts.length) {
-    return posts.map((post) => ({
-      ...post,
-      isResonated: false,
-      isFavorited: false
-    }));
+    return {
+      list: posts.map((post) => ({
+        ...post,
+        isResonated: false,
+        isFavorited: false
+      })),
+      viewerPremium: false
+    };
   }
 
   const ids = posts.map((item) => item._id);
@@ -34,7 +37,7 @@ const attachInteractionState = async (posts, userId) => {
     Resonance.find({ user: userId, post: { $in: ids } })
       .select('post')
       .lean(),
-    User.findById(userId).select('favoritePosts').lean()
+    User.findById(userId).select('favoritePosts premium').lean()
   ]);
 
   const resonanceSet = new Set(
@@ -44,11 +47,21 @@ const attachInteractionState = async (posts, userId) => {
     (user?.favoritePosts || []).map((item) => item.toString())
   );
 
-  return posts.map((post) => ({
-    ...post,
-    isResonated: resonanceSet.has(post._id.toString()),
-    isFavorited: favoriteSet.has(post._id.toString())
-  }));
+  const now = Date.now();
+  const viewerPremium = Boolean(
+    user?.premium?.isActive &&
+    user.premium.expireAt &&
+    new Date(user.premium.expireAt).getTime() > now
+  );
+
+  return {
+    list: posts.map((post) => ({
+      ...post,
+      isResonated: resonanceSet.has(post._id.toString()),
+      isFavorited: favoriteSet.has(post._id.toString())
+    })),
+    viewerPremium
+  };
 };
 
 const cacheRecommendation = async (options) => {
@@ -148,7 +161,7 @@ const getCachedRecommendation = async (options) => {
     logger.debug(`[Cache] Hit for key: ${cacheKey}`);
 
     const posts = await Post.find({ _id: { $in: cached.items } })
-      .populate('author', 'nickname avatar')
+      .populate('author', 'nickname avatar tagSkin')
       .lean();
 
     const postMap = new Map(
@@ -159,7 +172,7 @@ const getCachedRecommendation = async (options) => {
       .map((id) => postMap.get(id.toString()))
       .filter(Boolean);
 
-    const enriched = await attachInteractionState(
+    const { list: enriched, viewerPremium } = await attachInteractionState(
       orderedPosts,
       userId
     );
@@ -168,6 +181,7 @@ const getCachedRecommendation = async (options) => {
       mode: cached.mode,
       preferredTags: cached.preferredTags,
       list: enriched,
+      viewerPremium,
       itemScores: cached.itemScores,
       pagination: {
         page: cached.page,

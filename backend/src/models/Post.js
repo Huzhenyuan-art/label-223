@@ -72,6 +72,11 @@ const postSchema = new mongoose.Schema(
       default: 0,
       min: 0
     },
+    authorSkin: {
+      type: String,
+      enum: ['ocean', 'sunset', 'mint', 'ink'],
+      default: 'ocean'
+    },
     status: {
       type: String,
       enum: ['published', 'removed'],

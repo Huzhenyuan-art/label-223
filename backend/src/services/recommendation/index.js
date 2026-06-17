@@ -93,7 +93,7 @@ const getOceanFlow = async (options) => {
   } else {
     const maxItems = recConfig.cache.maxItemsPerPage;
     const basePosts = await Post.find(filter)
-      .populate('author', 'nickname avatar')
+      .populate('author', 'nickname avatar tagSkin')
       .sort({ createdAt: -1 })
       .limit(maxItems)
       .lean();
@@ -111,7 +111,7 @@ const getOceanFlow = async (options) => {
     rankedPosts = paged;
   }
 
-  const enriched = await cacheService.attachInteractionState(
+  const { list: enriched, viewerPremium } = await cacheService.attachInteractionState(
     rankedPosts,
     userId
   );
@@ -144,6 +144,7 @@ const getOceanFlow = async (options) => {
     mode,
     preferredTags,
     list: enriched,
+    viewerPremium,
     pagination: {
       page,
       limit,
@@ -187,7 +188,7 @@ const searchDeepSea = async (options) => {
 
   const [list, total] = await Promise.all([
     Post.find(filter)
-      .populate('author', 'nickname avatar')
+      .populate('author', 'nickname avatar tagSkin')
       .sort({ resonanceCount: -1, createdAt: -1 })
       .skip((page - 1) * limit)
       .limit(limit)
@@ -195,10 +196,11 @@ const searchDeepSea = async (options) => {
     Post.countDocuments(filter)
   ]);
 
-  const enriched = await cacheService.attachInteractionState(list, userId);
+  const { list: enriched, viewerPremium } = await cacheService.attachInteractionState(list, userId);
 
   return {
     list: enriched,
+    viewerPremium,
     query: {
       keyword,
       tags

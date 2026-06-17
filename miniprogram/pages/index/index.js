@@ -22,7 +22,8 @@ Page({
     page: 1,
     limit: 10,
     hasMore: true,
-    loading: false
+    loading: false,
+    viewerPremium: false
   },
 
   onShow() {
@@ -125,7 +126,8 @@ Page({
         posts: forceReset ? list : [...this.data.posts, ...list],
         page: page + 1,
         preferredTags: data.preferredTags || [],
-        hasMore: page < (data.pagination?.pages || 1)
+        hasMore: page < (data.pagination?.pages || 1),
+        viewerPremium: data.viewerPremium || false
       });
     } catch (error) {
       showFriendlyError(error, '内容加载失败，请稍后重试');
@@ -239,5 +241,9 @@ Page({
   goDetail(event) {
     const postId = event.currentTarget.dataset.id;
     safeNavigateTo(`/pages/detail/detail?id=${postId}`);
+  },
+
+  goMember() {
+    safeNavigateTo('/pages/member/member');
   }
 });

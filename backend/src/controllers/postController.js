@@ -22,6 +22,8 @@ exports.createPost = async (req, res) => {
       return res.status(400).json({ code: 1, message: 'At least one tag is required' });
     }
 
+    const author = await User.findById(req.userId).select('tagSkin').lean();
+
     const auditResult = await auditMultipleFields({
       fieldsMap: {
         title: req.body.title || '',
@@ -63,7 +65,8 @@ exports.createPost = async (req, res) => {
       dynamicTag: finalFields.dynamicTag,
       tags: finalTags,
       type: 'origin',
-      author: req.userId
+      author: req.userId,
+      authorSkin: author?.tagSkin || 'ocean'
     });
 
     try {
@@ -529,6 +532,7 @@ exports.updatePost = async (req, res) => {
         coverImage: req.body.coverImage || '',
         dynamicTag: finalFields.dynamicTag,
         tags: finalTags,
+        authorSkin: (await User.findById(req.userId).select('tagSkin').lean())?.tagSkin || 'ocean',
         updatedAt: new Date()
       },
       { new: true, runValidators: true }

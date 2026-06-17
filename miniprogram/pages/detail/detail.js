@@ -44,7 +44,8 @@ Page({
     resonanceHasMore: true,
     replyingTo: null,
     replyTag: '#回响者',
-    replyContent: ''
+    replyContent: '',
+    viewerPremium: false
   },
 
   onLoad(options) {
@@ -102,7 +103,8 @@ Page({
         },
         isOwnPost: String(post?.author?._id) === String(wx.getStorageSync('userId')),
         comments,
-        superEchoes
+        superEchoes,
+        viewerPremium: detail.viewerPremium || false
       });
 
       await this.loadTree();
@@ -377,6 +379,10 @@ Page({
       return;
     }
     safeNavigateTo(`/pages/edit/edit?editId=${post._id}`);
+  },
+
+  goMember() {
+    safeNavigateTo('/pages/member/member');
   },
 
   handleDelete() {

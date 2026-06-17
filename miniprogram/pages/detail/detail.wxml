@@ -1,5 +1,5 @@
 <view class="container" wx:if="{{post}}">
-  <view class="ocean-card">
+  <view class="ocean-card skin-card skin-{{post.authorSkin || 'ocean'}} {{viewerPremium ? '' : 'skin-locked'}}">
     <view class="row-between mb-16">
       <view class="post-tag">{{post.dynamicTag}}</view>
       <view class="muted">{{post.timeAgo}}</view>
@@ -37,6 +37,11 @@
       <button class="btn-secondary action-btn" bindtap="handleToggleFavorite">
         {{post.isFavorited ? '取消收藏' : '收藏'}}
       </button>
+    </view>
+
+    <view wx:if="{{!viewerPremium}}" class="skin-lock-overlay" bindtap="goMember">
+      <view class="skin-lock-hint">会员专属皮肤 · 开通后查看完整效果</view>
+      <view class="skin-lock-btn">去开通</view>
     </view>
   </view>
 

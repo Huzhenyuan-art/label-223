@@ -116,7 +116,7 @@
 
   <block wx:if="{{posts.length}}">
     <block wx:for="{{posts}}" wx:key="_id">
-      <view class="ocean-card">
+      <view class="ocean-card skin-card skin-{{item.authorSkin || 'ocean'}} {{viewerPremium ? '' : 'skin-locked'}}">
         <view class="row-between mb-16">
           <view class="post-tag">{{item.dynamicTag}}</view>
           <view class="muted">{{item.timeAgo}}</view>
@@ -150,6 +150,11 @@
             {{item.isFavorited ? '取消收藏' : '收藏'}}
           </button>
           <button class="btn-primary action-btn" data-id="{{item._id}}" bindtap="goDetail">查看详情</button>
+        </view>
+
+        <view wx:if="{{!viewerPremium}}" class="skin-lock-overlay" bindtap="goMember">
+          <view class="skin-lock-hint">会员专属皮肤 · 开通后查看完整效果</view>
+          <view class="skin-lock-btn">去开通</view>
         </view>
       </view>
     </block>
