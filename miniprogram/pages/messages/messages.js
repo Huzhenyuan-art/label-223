@@ -1,7 +1,8 @@
 const request = require('../../utils/request');
 const config = require('../../config/index');
-const socket = require('../../utils/socket');
-const { ensureLogin, formatTimeAgo, showFriendlyError, safeNavigateTo } = require('../../utils/util');
+const { createSocketManager } = require('../../utils/socketManager');
+const { formatConversationList } = require('../../utils/messageFormat');
+const { ensureLogin, showFriendlyError, safeNavigateTo } = require('../../utils/util');
 const app = getApp();
 
 Page({
@@ -11,23 +12,32 @@ Page({
     loading: false
   },
 
-  _socketHandlers: {},
+  _socketManager: null,
 
   onShow() {
     if (!ensureLogin()) {
       return;
     }
+
+    this._socketManager = this._socketManager || createSocketManager(this);
+    this._socketManager.bind({
+      message: this._handleMessageRefresh.bind(this),
+      readAck: this._handleMessageRefresh.bind(this),
+      reveal: this._handleMessageRefresh.bind(this),
+      tempNickname: this._handleMessageRefresh.bind(this),
+      unread: this._handleUnread.bind(this)
+    });
+
     this.loadAll();
-    this._bindSocketEvents();
     this._syncUnreadFromApp();
   },
 
   onHide() {
-    this._unbindSocketEvents();
+    this._socketManager?.unbind();
   },
 
   onUnload() {
-    this._unbindSocketEvents();
+    this._socketManager?.unbind();
   },
 
   _syncUnreadFromApp() {
@@ -46,46 +56,14 @@ Page({
     this.setData({ conversations: list });
   },
 
-  _bindSocketEvents() {
-    const onMessage = () => {
-      this.loadAll();
-    };
-
-    const onReadAck = () => {
-      this.loadAll();
-    };
-
-    const onReveal = () => {
-      this.loadAll();
-    };
-
-    const onTempNickname = () => {
-      this.loadAll();
-    };
-
-    const onUnread = (data) => {
-      if (!data) return;
-      this.setData({ unreadCount: data.total || 0 });
-      this._applyConversationUnreads(data.conversations || {});
-    };
-
-    this._socketHandlers = { onMessage, onReadAck, onReveal, onTempNickname, onUnread };
-
-    socket.on('message', onMessage);
-    socket.on('readAck', onReadAck);
-    socket.on('reveal', onReveal);
-    socket.on('tempNickname', onTempNickname);
-    socket.on('unread', onUnread);
+  _handleMessageRefresh() {
+    this.loadAll();
   },
 
-  _unbindSocketEvents() {
-    const { onMessage, onReadAck, onReveal, onTempNickname, onUnread } = this._socketHandlers;
-    socket.off('message', onMessage);
-    socket.off('readAck', onReadAck);
-    socket.off('reveal', onReveal);
-    socket.off('tempNickname', onTempNickname);
-    socket.off('unread', onUnread);
-    this._socketHandlers = {};
+  _handleUnread(data) {
+    if (!data) return;
+    this.setData({ unreadCount: data.total || 0 });
+    this._applyConversationUnreads(data.conversations || {});
   },
 
   async loadAll() {
@@ -96,19 +74,7 @@ Page({
         request.get(config.API.UNREAD_COUNT)
       ]);
 
-      const list = (conversations || []).map((item) => {
-        const revealed = item.reveal?.revealed;
-        return {
-          ...item,
-          timeAgo: formatTimeAgo(item.lastMessage?.createdAt),
-          displayName: item.user?.nickname || '同频回声',
-          revealText: revealed
-            ? '身份已揭示'
-            : item.reveal?.eligible
-              ? '可申请揭示身份'
-              : '交换3条消息后可揭示'
-        };
-      });
+      const list = formatConversationList(conversations || []);
 
       this.setData({
         conversations: list,
@@ -127,6 +93,8 @@ Page({
 
   openChat(event) {
     const { conversationId, userId, name, reveal } = event.currentTarget.dataset;
-    safeNavigateTo(`/pages/chat/chat?conversationId=${conversationId}&otherUserId=${userId}&name=${encodeURIComponent(name)}&revealed=${reveal ? '1' : '0'}`);
+    safeNavigateTo(
+      `/pages/chat/chat?conversationId=${conversationId}&otherUserId=${userId}&name=${encodeURIComponent(name)}&revealed=${reveal ? '1' : '0'}`
+    );
   }
 });

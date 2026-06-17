@@ -1,7 +1,8 @@
 const crypto = require('crypto');
-const { RecommendationCache, Post, Resonance, User } = require('../../models');
+const { RecommendationCache, Post } = require('../../models');
 const configService = require('./configService');
 const logger = require('../../utils/logger');
+const { attachInteractionState } = require('../../utils/interaction');
 
 const generateCacheKey = (mode, userId, tags, keyword, page, limit) => {
   const parts = [
@@ -17,51 +18,6 @@ const generateCacheKey = (mode, userId, tags, keyword, page, limit) => {
     .createHash('md5')
     .update(parts.join('|'))
     .digest('hex');
-};
-
-const attachInteractionState = async (posts, userId) => {
-  if (!userId || !posts.length) {
-    return {
-      list: posts.map((post) => ({
-        ...post,
-        isResonated: false,
-        isFavorited: false
-      })),
-      viewerPremium: false
-    };
-  }
-
-  const ids = posts.map((item) => item._id);
-
-  const [resonances, user] = await Promise.all([
-    Resonance.find({ user: userId, post: { $in: ids } })
-      .select('post')
-      .lean(),
-    User.findById(userId).select('favoritePosts premium').lean()
-  ]);
-
-  const resonanceSet = new Set(
-    resonances.map((item) => item.post.toString())
-  );
-  const favoriteSet = new Set(
-    (user?.favoritePosts || []).map((item) => item.toString())
-  );
-
-  const now = Date.now();
-  const viewerPremium = Boolean(
-    user?.premium?.isActive &&
-    user.premium.expireAt &&
-    new Date(user.premium.expireAt).getTime() > now
-  );
-
-  return {
-    list: posts.map((post) => ({
-      ...post,
-      isResonated: resonanceSet.has(post._id.toString()),
-      isFavorited: favoriteSet.has(post._id.toString())
-    })),
-    viewerPremium
-  };
 };
 
 const cacheRecommendation = async (options) => {

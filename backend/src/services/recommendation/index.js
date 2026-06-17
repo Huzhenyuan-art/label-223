@@ -1,4 +1,3 @@
-const config = require('../../config');
 const logger = require('../../utils/logger');
 const { Post } = require('../../models');
 const configService = require('./configService');
@@ -7,22 +6,7 @@ const snapshotService = require('./snapshotService');
 const rankingService = require('./rankingService');
 const cacheService = require('./cacheService');
 const scheduler = require('./scheduler');
-
-const escapeRegex = (value) =>
-  value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-
-const sanitizeTags = (tags) => {
-  if (!tags) {
-    return [];
-  }
-
-  const list = Array.isArray(tags) ? tags : String(tags).split(',');
-  const normalized = list
-    .map((tag) => String(tag).trim().replace(/^[#＃]/, '').toLowerCase())
-    .filter(Boolean);
-
-  return [...new Set(normalized)].slice(0, config.maxTagsPerPost);
-};
+const { sanitizeTags, escapeRegex } = require('../../utils/common');
 
 const getOceanFlow = async (options) => {
   const {
@@ -38,6 +22,7 @@ const getOceanFlow = async (options) => {
   const keyword = (rawKeyword || '').trim();
 
   const recConfig = await configService.getConfig();
+  const config = require('../../config');
 
   if (config.recommendation.enabled && recConfig.cache.enabled) {
     const cached = await cacheService.getCachedRecommendation({
@@ -219,6 +204,7 @@ const initialize = async () => {
     await configService.loadActiveConfig();
     logger.info('[Recommendation] Configuration loaded');
 
+    const config = require('../../config');
     if (config.recommendation.scheduler.enabled) {
       scheduler.start();
     }

@@ -1,8 +1,14 @@
 const request = require('../../utils/request');
 const config = require('../../config/index');
 const socket = require('../../utils/socket');
-const { ensureLogin, formatTimeAgo, showFriendlyError, safeNavigateTo } = require('../../utils/util');
-const app = getApp();
+const { createSocketManager } = require('../../utils/socketManager');
+const {
+  formatMessageList,
+  formatMessageItem,
+  normalizeDynamicTag,
+  createAutoRevealCountdownTimer
+} = require('../../utils/messageFormat');
+const { ensureLogin, showFriendlyError, safeNavigateTo } = require('../../utils/util');
 
 Page({
   data: {
@@ -23,17 +29,23 @@ Page({
     autoRevealCountdown: ''
   },
 
-  _socketHandlers: {},
-  _autoRevealTimer: null,
+  _socketManager: null,
+  _countdownTimer: null,
+  _options: null,
 
   onLoad(options) {
+    this._options = options;
     this.setData({
       conversationId: options.conversationId || '',
       otherUserId: options.otherUserId || '',
       displayName: decodeURIComponent(options.name || '同频回声')
     });
 
-    this._bindSocketEvents();
+    this._socketManager = createSocketManager(this);
+    this._countdownTimer = createAutoRevealCountdownTimer(
+      (countdown) => this.setData({ autoRevealCountdown: countdown }),
+      () => this.loadMessages()
+    );
   },
 
   onShow() {
@@ -45,6 +57,15 @@ Page({
       wx.showToast({ title: '会话信息异常，请返回重试', icon: 'none' });
       return;
     }
+
+    this._socketManager.bind({
+      message: this._handleSocketMessage.bind(this),
+      stateChange: this._updateWsState.bind(this),
+      reveal: this._handleSocketReveal.bind(this),
+      readAck: this._handleSocketReadAck.bind(this),
+      tempNickname: this._handleSocketTempNickname.bind(this)
+    });
+
     this.loadMessages();
     this._sendReadAck();
     this._updateWsState();
@@ -52,13 +73,13 @@ Page({
 
   onHide() {
     this._sendReadAck();
-    this._stopAutoRevealTimer();
+    this._countdownTimer.stop();
   },
 
   onUnload() {
     this._sendReadAck();
-    this._unbindSocketEvents();
-    this._stopAutoRevealTimer();
+    this._socketManager?.unbind();
+    this._countdownTimer.stop();
   },
 
   bindField(event) {
@@ -66,109 +87,71 @@ Page({
     this.setData({ [key]: event.detail.value });
   },
 
-  _bindSocketEvents() {
-    const onMessage = (msg) => {
-      if (!msg) return;
+  _handleSocketMessage(msg) {
+    if (!msg) return;
+    const msgConversationId = msg.conversationId || this.data.conversationId;
+    if (msgConversationId !== this.data.conversationId) return;
 
-      const msgConversationId = msg.conversationId || this.data.conversationId;
+    const formatted = formatMessageItem(msg);
+    const list = this.data.list;
+    const exists = list.some((item) => item._id && item._id === msg._id);
+    if (exists) return;
 
-      if (msgConversationId !== this.data.conversationId) return;
+    this.setData({
+      list: [...list, formatted],
+      scrollAnchor: `msg-${msg._id}`
+    });
 
-      const userId = wx.getStorageSync('userId');
-      const formatted = {
-        ...msg,
-        timeAgo: formatTimeAgo(msg.createdAt),
-        mine: msg.sender?._id === userId || msg.sender?.toString() === userId,
-        sourcePostLabel: msg.sourcePost ? (msg.sourcePost.title || msg.sourcePost.dynamicTag) : ''
-      };
+    this._sendReadAck();
+  },
 
-      const list = this.data.list;
-      const exists = list.some((item) => item._id === msg._id || (item._id && item._id === msg._id));
-      if (exists) return;
+  _updateWsState() {
+    this.setData({ wsConnected: socket.isConnected() });
+  },
 
-      this.setData({
-        list: [...list, formatted],
-        scrollAnchor: `msg-${msg._id}`
-      });
+  _handleSocketReveal(data) {
+    if (!data || data.conversationId !== this.data.conversationId) return;
+    this.setData({ reveal: data });
+    if (data.revealed) {
+      this._countdownTimer.stop();
+      this.loadMessages();
+    } else {
+      this._updateAutoRevealTimer(data);
+    }
+  },
 
-      this._sendReadAck();
-    };
+  _handleSocketReadAck(data) {
+    if (!data || data.conversationId !== this.data.conversationId) return;
+    const list = this.data.list.map((item) =>
+      item.mine && !item.read ? { ...item, read: true } : item
+    );
+    this.setData({ list });
+  },
 
-    const onStateChange = () => {
-      this._updateWsState();
-    };
+  _handleSocketTempNickname(data) {
+    if (!data || data.conversationId !== this.data.conversationId) return;
+    const userId = wx.getStorageSync('userId');
+    const isMine = data.fromUserId === userId;
 
-    const onReveal = (data) => {
-      if (!data || data.conversationId !== this.data.conversationId) return;
-      this.setData({ reveal: data });
-      if (data.revealed) {
-        this._stopAutoRevealTimer();
-        this.loadMessages();
-      } else {
-        this._updateAutoRevealTimer(data);
-      }
-    };
-
-    const onReadAck = (data) => {
-      if (!data || data.conversationId !== this.data.conversationId) return;
+    if (!isMine) {
+      this.setData({ displayName: data.tempNickname });
       const list = this.data.list.map((item) => {
-        if (item.mine && !item.read) {
-          return { ...item, read: true };
+        if (!item.mine && item.sender) {
+          return { ...item, sender: { ...item.sender, nickname: data.tempNickname } };
         }
         return item;
       });
       this.setData({ list });
-    };
+    }
 
-    const onTempNickname = (data) => {
-      if (!data || data.conversationId !== this.data.conversationId) return;
-      const userId = wx.getStorageSync('userId');
-      const isMine = data.fromUserId === userId;
-
-      if (!isMine) {
-        this.setData({ displayName: data.tempNickname });
-        const list = this.data.list.map((item) => {
-          if (!item.mine && item.sender) {
-            return { ...item, sender: { ...item.sender, nickname: data.tempNickname } };
-          }
-          return item;
-        });
-        this.setData({ list });
-      }
-
-      if (this.data.reveal) {
-        this.setData({
-          reveal: {
-            ...this.data.reveal,
-            tempNicknames: data.tempNicknames || this.data.reveal.tempNicknames
-          }
-        });
-      }
-    };
-
-    this._socketHandlers = { onMessage, onStateChange, onReveal, onReadAck, onTempNickname };
-
-    socket.on('message', onMessage);
-    socket.on('stateChange', onStateChange);
-    socket.on('reveal', onReveal);
-    socket.on('readAck', onReadAck);
-    socket.on('tempNickname', onTempNickname);
-  },
-
-  _unbindSocketEvents() {
-    const { onMessage, onStateChange, onReveal, onReadAck, onTempNickname } = this._socketHandlers;
-    socket.off('message', onMessage);
-    socket.off('stateChange', onStateChange);
-    socket.off('reveal', onReveal);
-    socket.off('readAck', onReadAck);
-    socket.off('tempNickname', onTempNickname);
-    this._socketHandlers = {};
-  },
-
-  _updateWsState() {
-    this.setData({
-      wsConnected: socket.isConnected()
-    });
+    if (this.data.reveal) {
+      this.setData({
+        reveal: {
+          ...this.data.reveal,
+          tempNicknames: data.tempNicknames || this.data.reveal.tempNicknames
+        }
+      });
+    }
   },
 
   _sendReadAck() {
@@ -182,17 +165,12 @@ Page({
 
     try {
       const userId = wx.getStorageSync('userId');
-      const data = await request.get(`${config.API.CONVERSATIONS}/${this.data.conversationId}/messages`, {
-        page: 1,
-        limit: 50
-      });
+      const data = await request.get(
+        `${config.API.CONVERSATIONS}/${this.data.conversationId}/messages`,
+        { page: 1, limit: 50 }
+      );
 
-      const list = (data.list || []).map((item) => ({
-        ...item,
-        timeAgo: formatTimeAgo(item.createdAt),
-        mine: item.sender?._id === userId,
-        sourcePostLabel: item.sourcePost ? (item.sourcePost.title || item.sourcePost.dynamicTag) : ''
-      }));
+      const list = formatMessageList(data.list || [], userId);
 
       const last = list[list.length - 1];
       const otherTempName = data.reveal?.tempNicknames?.[this.data.otherUserId] || '同频回声';
@@ -202,7 +180,7 @@ Page({
         list,
         reveal: data.reveal,
         displayName: data.reveal?.revealed
-          ? decodeURIComponent(this.options.name || '同频回声')
+          ? decodeURIComponent(this._options?.name || '同频回声')
           : otherTempName,
         myTempNickname: myTempName,
         scrollAnchor: last ? `msg-${last._id}` : ''
@@ -211,7 +189,7 @@ Page({
       this._updateAutoRevealTimer(data.reveal);
 
       if (data.reveal?.revealed) {
-        this._stopAutoRevealTimer();
+        this._countdownTimer.stop();
         try {
           const publicInfo = await request.get(`${config.API.USER_PUBLIC_PREFIX}/${this.data.otherUserId}`);
           if (publicInfo?.profile?.nickname) {
@@ -239,10 +217,7 @@ Page({
 
     if (this.data.sending) return;
 
-    const senderDynamicTag = this.data.senderDynamicTag.startsWith('#') || this.data.senderDynamicTag.startsWith('＃')
-      ? this.data.senderDynamicTag
-      : `#${this.data.senderDynamicTag}`;
-
+    const senderDynamicTag = normalizeDynamicTag(this.data.senderDynamicTag);
     this.setData({ sending: true });
 
     const wsSent = socket.sendMessage({
@@ -253,8 +228,7 @@ Page({
     });
 
     if (wsSent) {
-      this.setData({ content: '' });
-      this.setData({ sending: false });
+      this.setData({ content: '', sending: false });
       return;
     }
 
@@ -281,9 +255,12 @@ Page({
       });
       this.setData({ reveal });
       this._updateAutoRevealTimer(reveal);
-      wx.showToast({ title: reveal.revealed ? '身份已揭示' : '已发送揭示申请', icon: 'none' });
+      wx.showToast({
+        title: reveal.revealed ? '身份已揭示' : '已发送揭示申请',
+        icon: 'none'
+      });
       if (reveal.revealed) {
-        this._stopAutoRevealTimer();
+        this._countdownTimer.stop();
         this.loadMessages();
       }
     } catch (error) {
@@ -296,7 +273,6 @@ Page({
       wx.showToast({ title: '双方揭示后可查看主页', icon: 'none' });
       return;
     }
-
     safeNavigateTo(`/pages/publicProfile/publicProfile?id=${this.data.otherUserId}`);
   },
 
@@ -360,46 +336,12 @@ Page({
     }
   },
 
-  _formatCountdown(ms) {
-    if (ms <= 0) return '';
-    const totalSeconds = Math.floor(ms / 1000);
-    const hours = Math.floor(totalSeconds / 3600);
-    const minutes = Math.floor((totalSeconds % 3600) / 60);
-    const seconds = totalSeconds % 60;
-    const pad = (n) => (n < 10 ? `0${n}` : `${n}`);
-    return `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
-  },
-
   _updateAutoRevealTimer(reveal) {
-    this._stopAutoRevealTimer();
-
+    this._countdownTimer.stop();
     if (!reveal || reveal.revealed || !reveal.waitingForOther || !reveal.autoRevealDeadline) {
       this.setData({ autoRevealCountdown: '' });
       return;
     }
-
-    const deadline = new Date(reveal.autoRevealDeadline).getTime();
-
-    const tick = () => {
-      const remaining = deadline - Date.now();
-      if (remaining <= 0) {
-        this.setData({ autoRevealCountdown: '' });
-        this._stopAutoRevealTimer();
-        this.loadMessages();
-        return;
-      }
-      this.setData({ autoRevealCountdown: this._formatCountdown(remaining) });
-    };
-
-    tick();
-    this._autoRevealTimer = setInterval(tick, 1000);
-  },
-
-  _stopAutoRevealTimer() {
-    if (this._autoRevealTimer) {
-      clearInterval(this._autoRevealTimer);
-      this._autoRevealTimer = null;
-    }
-    this.setData({ autoRevealCountdown: '' });
+    this._countdownTimer.start(reveal.autoRevealDeadline);
   }
 });

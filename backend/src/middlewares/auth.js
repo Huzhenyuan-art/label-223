@@ -1,6 +1,13 @@
 const { User } = require('../models');
 const logger = require('../utils/logger');
 const { extractBearerToken, verifyToken } = require('../utils/auth');
+const {
+  BannedError,
+  AdminRequiredError,
+  PremiumRequiredError,
+  UnauthorizedError
+} = require('../utils/errors');
+const { isPremiumActive } = require('../utils/common');
 
 const resolveUser = async (req) => {
   const token = extractBearerToken(req.headers.authorization);
@@ -8,7 +15,13 @@ const resolveUser = async (req) => {
     return null;
   }
 
-  const payload = verifyToken(token);
+  let payload;
+  try {
+    payload = verifyToken(token);
+  } catch (error) {
+    return null;
+  }
+
   if (!payload?.sub) {
     return null;
   }
@@ -21,23 +34,27 @@ const resolveUser = async (req) => {
   return user;
 };
 
+const attachUserToRequest = (req, user) => {
+  req.userId = user._id;
+  req.user = user;
+};
+
 const auth = async (req, res, next) => {
   try {
     const user = await resolveUser(req);
     if (!user) {
-      return res.status(401).json({ code: 1, message: 'Unauthorized' });
+      throw UnauthorizedError();
     }
 
     if (user.status === 'banned') {
-      return res.status(403).json({ code: 4, message: '账号已被封禁' });
+      throw BannedError();
     }
 
-    req.userId = user._id;
-    req.user = user;
+    attachUserToRequest(req, user);
     return next();
   } catch (error) {
     logger.error(`Auth error: ${error.message}`);
-    return res.status(401).json({ code: 1, message: 'Unauthorized' });
+    return next(error);
   }
 };
 
@@ -45,41 +62,24 @@ const optionalAuth = async (req, res, next) => {
   try {
     const user = await resolveUser(req);
     if (user && user.status !== 'banned') {
-      req.userId = user._id;
-      req.user = user;
+      attachUserToRequest(req, user);
     }
-
     return next();
   } catch (error) {
     return next();
   }
 };
 
-const isPremiumActive = (premium) => {
-  if (!premium || !premium.isActive || !premium.expireAt) {
-    return false;
-  }
-  return new Date(premium.expireAt).getTime() > Date.now();
-};
-
 const requirePremium = (req, res, next) => {
-  const user = req.user;
-  if (!user || !isPremiumActive(user.premium)) {
-    return res.status(403).json({
-      code: 2,
-      message: '该功能为会员专属，请先开通会员'
-    });
+  if (!req.user || !isPremiumActive(req.user.premium)) {
+    return next(PremiumRequiredError());
   }
   return next();
 };
 
 const requireAdmin = (req, res, next) => {
-  const user = req.user;
-  if (!user || !user.isAdmin) {
-    return res.status(403).json({
-      code: 3,
-      message: '需要管理员权限'
-    });
+  if (!req.user || !req.user.isAdmin) {
+    return next(AdminRequiredError());
   }
   return next();
 };
@@ -88,23 +88,28 @@ const adminAuth = async (req, res, next) => {
   try {
     const user = await resolveUser(req);
     if (!user) {
-      return res.status(401).json({ code: 1, message: '请先登录' });
+      throw UnauthorizedError('请先登录');
     }
 
     if (!user.isAdmin) {
-      return res.status(403).json({ code: 3, message: '需要管理员权限' });
+      throw AdminRequiredError();
     }
 
-    req.userId = user._id;
-    req.user = user;
+    if (user.status === 'banned') {
+      throw BannedError();
+    }
+
+    attachUserToRequest(req, user);
     return next();
   } catch (error) {
     logger.error(`Admin auth error: ${error.message}`);
-    return res.status(401).json({ code: 1, message: 'Unauthorized' });
+    return next(error);
   }
 };
 
 module.exports = {
+  resolveUser,
+  attachUserToRequest,
   auth,
   optionalAuth,
   requirePremium,

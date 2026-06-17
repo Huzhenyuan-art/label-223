@@ -12,6 +12,7 @@ const setupRoutes = require('./routes');
 const { setupWebSocket } = require('./websocket');
 const { ensureDir } = require('./utils/storage');
 const recommendation = require('./services/recommendation');
+const { notFoundHandler, globalErrorHandler } = require('./middlewares/errorHandler');
 
 const app = express();
 const server = http.createServer(app);
@@ -44,14 +45,8 @@ app.get('/health', (req, res) => {
 
 setupRoutes(app);
 
-app.use((req, res) => {
-  res.status(404).json({ code: 1, message: 'Not Found' });
-});
-
-app.use((err, req, res, next) => {
-  logger.error(`Unhandled error: ${err.message}`);
-  res.status(500).json({ code: 1, message: 'Internal server error' });
-});
+app.use(notFoundHandler);
+app.use(globalErrorHandler);
 
 const start = async () => {
   try {

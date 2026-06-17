@@ -1,5 +1,6 @@
 const express = require('express');
 const setupRoutes = require('../../src/routes');
+const { notFoundHandler, globalErrorHandler } = require('../../src/middlewares/errorHandler');
 
 const createTestApp = () => {
   const app = express();
@@ -12,13 +13,8 @@ const createTestApp = () => {
 
   setupRoutes(app);
 
-  app.use((req, res) => {
-    res.status(404).json({ code: 1, message: 'Not Found' });
-  });
-
-  app.use((err, req, res, next) => {
-    res.status(500).json({ code: 1, message: 'Internal server error', error: err.message });
-  });
+  app.use(notFoundHandler);
+  app.use(globalErrorHandler);
 
   return app;
 };

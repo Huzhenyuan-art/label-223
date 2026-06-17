@@ -1,77 +1,34 @@
 const notificationService = require('../services/notificationService');
-const logger = require('../utils/logger');
+const { asyncHandler, sendSuccess } = require('../utils/errors');
 
-exports.getNotifications = async (req, res) => {
-  try {
-    const userId = req.userId;
-    const page = Number(req.query.page || 1);
-    const limit = Number(req.query.limit || 20);
-    const type = req.query.type || null;
+exports.getNotifications = asyncHandler(async (req, res) => {
+  const result = await notificationService.getNotifications(req.userId, {
+    page: Number(req.query.page || 1),
+    limit: Number(req.query.limit || 20),
+    type: req.query.type || null
+  });
+  return sendSuccess(res, result);
+});
 
-    const result = await notificationService.getNotifications(userId, { page, limit, type });
+exports.getUnreadCount = asyncHandler(async (req, res) => {
+  const count = await notificationService.getUnreadCount(req.userId);
+  return sendSuccess(res, { count });
+});
 
-    return res.json({
-      code: 0,
-      data: result
-    });
-  } catch (error) {
-    logger.error(`Get notifications error: ${error.message}`);
-    return res.status(500).json({ code: 1, message: 'Server error' });
-  }
-};
+exports.getUnreadCountsByType = asyncHandler(async (req, res) => {
+  const counts = await notificationService.getUnreadCountsByType(req.userId);
+  return sendSuccess(res, counts);
+});
 
-exports.getUnreadCount = async (req, res) => {
-  try {
-    const userId = req.userId;
-    const count = await notificationService.getUnreadCount(userId);
+exports.markAsRead = asyncHandler(async (req, res) => {
+  const modifiedCount = await notificationService.markAsRead(
+    req.userId,
+    req.body.notificationIds
+  );
+  return sendSuccess(res, { modifiedCount });
+});
 
-    return res.json({ code: 0, data: { count } });
-  } catch (error) {
-    logger.error(`Get notification unread count error: ${error.message}`);
-    return res.status(500).json({ code: 1, message: 'Server error' });
-  }
-};
-
-exports.getUnreadCountsByType = async (req, res) => {
-  try {
-    const userId = req.userId;
-    const counts = await notificationService.getUnreadCountsByType(userId);
-
-    return res.json({ code: 0, data: counts });
-  } catch (error) {
-    logger.error(`Get notification unread counts by type error: ${error.message}`);
-    return res.status(500).json({ code: 1, message: 'Server error' });
-  }
-};
-
-exports.markAsRead = async (req, res) => {
-  try {
-    const userId = req.userId;
-    const { notificationIds } = req.body;
-
-    const modifiedCount = await notificationService.markAsRead(userId, notificationIds);
-
-    return res.json({
-      code: 0,
-      data: { modifiedCount }
-    });
-  } catch (error) {
-    logger.error(`Mark notifications read error: ${error.message}`);
-    return res.status(500).json({ code: 1, message: 'Server error' });
-  }
-};
-
-exports.markAllAsRead = async (req, res) => {
-  try {
-    const userId = req.userId;
-    const modifiedCount = await notificationService.markAllAsRead(userId);
-
-    return res.json({
-      code: 0,
-      data: { modifiedCount }
-    });
-  } catch (error) {
-    logger.error(`Mark all notifications read error: ${error.message}`);
-    return res.status(500).json({ code: 1, message: 'Server error' });
-  }
-};
+exports.markAllAsRead = asyncHandler(async (req, res) => {
+  const modifiedCount = await notificationService.markAllAsRead(req.userId);
+  return sendSuccess(res, { modifiedCount });
+});

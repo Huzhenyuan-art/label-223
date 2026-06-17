@@ -1,6 +1,14 @@
 const request = require('../../utils/request');
 const config = require('../../config/index');
-const { ensureLogin, formatTimeAgo, formatDateLabel, parseTagsInput, showFriendlyError, safeNavigateTo } = require('../../utils/util');
+const {
+  ensureLogin,
+  formatTimeAgo,
+  formatDateLabel,
+  parseTagsInput,
+  showFriendlyError,
+  safeNavigateTo,
+  normalizeDynamicTag
+} = require('../../utils/util');
 
 const flattenTree = (node, depth = 0, arr = []) => {
   if (!node) {
@@ -144,9 +152,7 @@ Page({
       return;
     }
 
-    const dynamicTag = replyTag.startsWith('#') || replyTag.startsWith('＃')
-      ? replyTag
-      : `#${replyTag}`;
+    const dynamicTag = normalizeDynamicTag(replyTag);
 
     try {
       await request.post(
@@ -265,9 +271,7 @@ Page({
       return;
     }
 
-    const dynamicTag = this.data.commentTag.startsWith('#') || this.data.commentTag.startsWith('＃')
-      ? this.data.commentTag
-      : `#${this.data.commentTag}`;
+    const dynamicTag = normalizeDynamicTag(this.data.commentTag);
 
     try {
       await request.post(`${config.API.POST_PREFIX}/${this.data.id}/comment`, {
@@ -295,9 +299,7 @@ Page({
       return;
     }
 
-    const dynamicTag = this.data.echoTag.startsWith('#') || this.data.echoTag.startsWith('＃')
-      ? this.data.echoTag
-      : `#${this.data.echoTag}`;
+    const dynamicTag = normalizeDynamicTag(this.data.echoTag);
 
     try {
       await request.post(`${config.API.POST_PREFIX}/${this.data.id}/super-echo`, {
@@ -333,9 +335,7 @@ Page({
       return;
     }
 
-    const senderDynamicTag = waveTag.startsWith('#') || waveTag.startsWith('＃')
-      ? waveTag
-      : `#${waveTag}`;
+    const senderDynamicTag = normalizeDynamicTag(waveTag);
 
     const tempNickname = waveTempNickname.trim();
     if (tempNickname && tempNickname.length > 24) {

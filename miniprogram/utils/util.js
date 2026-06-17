@@ -258,6 +258,23 @@ const showFriendlyError = (error, fallbackMessage = '操作失败，请稍后重
   wx.showToast({ title: fallbackMessage, icon: 'none' });
 };
 
+const normalizeDynamicTag = (tag) => {
+  if (!tag) return '';
+  return tag.startsWith('#') || tag.startsWith('＃')
+    ? tag
+    : `#${tag}`;
+};
+
+const formatCountdown = (ms) => {
+  if (ms <= 0) return '';
+  const totalSeconds = Math.floor(ms / 1000);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  const pad = (n) => (n < 10 ? `0${n}` : `${n}`);
+  return `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
+};
+
 module.exports = {
   formatTimeAgo,
   formatDateLabel,
@@ -271,5 +288,7 @@ module.exports = {
   safeReLaunch,
   preloadSubPages,
   ensureLogin,
-  showFriendlyError
+  showFriendlyError,
+  normalizeDynamicTag,
+  formatCountdown
 };

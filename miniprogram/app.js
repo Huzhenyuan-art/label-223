@@ -1,6 +1,7 @@
 const socket = require('./utils/socket');
 const config = require('./config/index');
 const request = require('./utils/request');
+const { createSocketManager } = require('./utils/socketManager');
 const { isAuthenticated, readAuthSession, redirectToLogin, safeReLaunch, preloadSubPages } = require('./utils/util');
 
 App({
@@ -23,7 +24,7 @@ App({
     authBootstrapped: false
   },
 
-  _socketHandlers: {},
+  _socketManager: null,
 
   onLaunch() {
     try {
@@ -35,7 +36,7 @@ App({
         this.globalData.authToken = session.authToken;
         this.globalData.authBootstrapped = true;
         socket.connect(session.authToken);
-        this._bindSocketEvents();
+        this._initSocketBindings();
         safeReLaunch('/pages/index/index');
         preloadSubPages({ delay: 500 });
         return;
@@ -51,46 +52,24 @@ App({
     }
   },
 
-  _bindSocketEvents() {
-    const onUnread = (data) => {
-      this._applyUnread(data);
-    };
-
-    const onMessage = () => {
-      this.refreshUnreadCount();
-    };
-
-    const onAuth = (result) => {
-      if (!result.success) {
-        console.error('[app] socket auth failed');
-      }
-    };
-
-    const onResonanceNotify = () => {
-      this.refreshResonanceCount();
-    };
-
-    const onNotificationUnread = (data) => {
-      this._applyNotificationUnread(data);
-    };
-
-    this._socketHandlers = { onUnread, onMessage, onAuth, onResonanceNotify, onNotificationUnread };
-
-    socket.on('unread', onUnread);
-    socket.on('message', onMessage);
-    socket.on('auth', onAuth);
-    socket.on('resonanceNotify', onResonanceNotify);
-    socket.on('notification_unread', onNotificationUnread);
+  _initSocketBindings() {
+    this._socketManager = this._socketManager || createSocketManager(this);
+    this._socketManager.bind({
+      unread: (data) => this._applyUnread(data),
+      message: () => this.refreshUnreadCount(),
+      auth: (result) => {
+        if (!result.success) {
+          console.error('[app] socket auth failed');
+        }
+      },
+      resonanceNotify: () => this.refreshResonanceCount(),
+      notification_unread: (data) => this._applyNotificationUnread(data)
+    });
   },
 
-  _unbindSocketEvents() {
-    const { onUnread, onMessage, onAuth, onResonanceNotify, onNotificationUnread } = this._socketHandlers;
-    socket.off('unread', onUnread);
-    socket.off('message', onMessage);
-    socket.off('auth', onAuth);
-    socket.off('resonanceNotify', onResonanceNotify);
-    socket.off('notification_unread', onNotificationUnread);
-    this._socketHandlers = {};
+  _disposeSocketBindings() {
+    this._socketManager?.unbind();
+    this._socketManager = null;
   },
 
   _applyUnread(data) {
@@ -172,7 +151,7 @@ App({
     wx.setStorageSync('authToken', authToken);
     wx.setStorageSync('userId', userInfo.id);
     socket.connect(authToken);
-    this._bindSocketEvents();
+    this._initSocketBindings();
     preloadSubPages({ delay: 200 });
   },
 
@@ -210,7 +189,7 @@ App({
       // ignore
     }
 
-    this._unbindSocketEvents();
+    this._disposeSocketBindings();
     socket.disconnect();
 
     if (redirect) {

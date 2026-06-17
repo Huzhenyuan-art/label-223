@@ -1,602 +1,165 @@
-const mongoose = require('mongoose');
-const { Post, Resonance, Comment, ResonanceNotification, TagChannel, UserTagSubscription, User } = require('../models');
+const { ResonanceNotification } = require('../models');
 const logger = require('../utils/logger');
-const config = require('../config');
 const { sendToUser } = require('../websocket');
-const { auditMultipleFields, auditContent } = require('../services/auditService');
 const notificationService = require('../services/notificationService');
+const postService = require('../services/postService');
+const resonanceService = require('../services/resonanceService');
+const commentService = require('../services/commentService');
+const { asyncHandler } = require('../utils/errors');
 
-const sanitizeTags = (tags) => {
-  const list = Array.isArray(tags) ? tags : [];
-  const normalized = list
-    .map((tag) => String(tag).trim().replace(/^[#＃]/, '').toLowerCase())
-    .filter(Boolean);
+const buildAuditInfo = (auditInfo) => ({
+  auditInfo: {
+    action: auditInfo.action,
+    matchedWords: auditInfo.matchedWords
+  }
+});
 
-  return [...new Set(normalized)].slice(0, config.maxTagsPerPost);
-};
+exports.createPost = asyncHandler(async (req, res) => {
+  const result = await postService.createOriginPost({
+    body: req.body,
+    userId: req.userId
+  });
 
-exports.createPost = async (req, res) => {
-  try {
-    const tags = sanitizeTags(req.body.tags);
-    if (!tags.length) {
-      return res.status(400).json({ code: 1, message: 'At least one tag is required' });
+  logger.info(`Post created: ${result.post._id} by ${req.userId}, auditAction: ${result.auditInfo.action}`);
+
+  return res.status(201).json({
+    code: 0,
+    data: result.post,
+    ...buildAuditInfo(result.auditInfo)
+  });
+});
+
+exports.createSuperEcho = asyncHandler(async (req, res) => {
+  const result = await postService.createSuperEcho({
+    parentId: req.params.id,
+    body: req.body,
+    userId: req.userId
+  });
+
+  const { post, auditInfo, parent } = result;
+
+  if (parent.author.toString() !== req.userId.toString()) {
+    const notification = await ResonanceNotification.create({
+      recipient: parent.author,
+      post: parent._id,
+      superEcho: post._id,
+      sender: req.userId
+    });
+
+    await notification.populate('sender', 'nickname avatar');
+    await notification.populate('post', 'title dynamicTag');
+
+    try {
+      sendToUser(parent.author.toString(), {
+        type: 'resonance_notify',
+        data: {
+          _id: notification._id,
+          post: notification.post,
+          superEcho: post._id,
+          sender: notification.sender,
+          senderDynamicTag: post.dynamicTag,
+          createdAt: notification.createdAt
+        }
+      });
+    } catch (e) {
+      logger.error(`Push resonance notify error: ${e.message}`);
     }
 
-    const author = await User.findById(req.userId).select('tagSkin').lean();
+    notificationService.createSuperEchoNotification(
+      parent.author,
+      req.userId,
+      parent._id,
+      post._id,
+      post.dynamicTag
+    ).catch((e) => logger.error(`Create super echo notification error: ${e.message}`));
+  }
 
-    const auditResult = await auditMultipleFields({
-      fieldsMap: {
-        title: req.body.title || '',
-        contentText: req.body.contentText,
-        dynamicTag: req.body.dynamicTag,
-        tags: tags.join(' ')
-      },
-      type: 'post',
+  logger.info(`Super echo created: ${post._id} -> ${parent._id}, auditAction: ${auditInfo.action}`);
+
+  return res.status(201).json({
+    code: 0,
+    data: post,
+    ...buildAuditInfo(auditInfo)
+  });
+});
+
+exports.toggleResonance = asyncHandler(async (req, res) => {
+  try {
+    const result = await resonanceService.toggleResonance({
+      postId: req.params.id,
       userId: req.userId
     });
 
-    if (auditResult.blocked) {
-      return res.status(400).json({
-        code: 1,
-        message: '内容包含违规信息，无法发布',
-        data: {
-          matchedWords: auditResult.matchedWords
-        }
-      });
-    }
-
-    const finalFields = auditResult.maskedFieldsMap || {
-      title: req.body.title || '',
-      contentText: req.body.contentText,
-      dynamicTag: req.body.dynamicTag,
-      tags: tags.join(' ')
-    };
-
-    const finalTags = auditResult.maskedFieldsMap
-      ? sanitizeTags(auditResult.maskedFieldsMap.tags.split(' '))
-      : tags;
-
-    const post = await Post.create({
-      title: finalFields.title || '',
-      contentText: finalFields.contentText,
-      contentAudio: req.body.audioUrl || '',
-      contentLink: req.body.linkUrl || '',
-      coverImage: req.body.coverImage || '',
-      dynamicTag: finalFields.dynamicTag,
-      tags: finalTags,
-      type: 'origin',
-      author: req.userId,
-      authorSkin: author?.tagSkin || 'ocean'
-    });
-
-    try {
-      const now = new Date();
-      for (const tag of finalTags) {
-        const channel = await TagChannel.findOne({ tag });
-        if (channel) {
-          await TagChannel.updateOne(
-            { tag },
-            {
-              $inc: { postCount: 1 },
-              $set: { lastPostAt: now }
-            }
-          );
-        } else {
-          await TagChannel.create({
-            tag,
-            displayName: tag,
-            postCount: 1,
-            lastPostAt: now,
-            isActive: true
-          });
-        }
-
-        await UserTagSubscription.updateMany(
-          { tag, user: { $ne: req.userId } },
-          { $inc: { unreadCount: 1 } }
-        );
-      }
-    } catch (tagUpdateError) {
-      logger.error(`Update tag channels error: ${tagUpdateError.message}`);
-    }
-
-    logger.info(`Post created: ${post._id} by ${req.userId}, auditAction: ${auditResult.action}`);
-
-    return res.status(201).json({
-      code: 0,
-      data: post,
-      auditInfo: {
-        action: auditResult.action,
-        matchedWords: auditResult.matchedWords
-      }
-    });
-  } catch (error) {
-    logger.error(`Create post error: ${error.message}`);
-    return res.status(500).json({ code: 1, message: 'Server error' });
-  }
-};
-
-exports.createSuperEcho = async (req, res) => {
-  try {
-    const parentId = req.params.id;
-    if (!mongoose.Types.ObjectId.isValid(parentId)) {
-      return res.status(400).json({ code: 1, message: 'Invalid post id' });
-    }
-
-    const parent = await Post.findById(parentId);
-    if (!parent) {
-      return res.status(404).json({ code: 1, message: 'Parent post not found' });
-    }
-
-    const tags = sanitizeTags(req.body.tags);
-    if (!tags.length) {
-      return res.status(400).json({ code: 1, message: 'At least one tag is required' });
-    }
-
-    const auditResult = await auditMultipleFields({
-      fieldsMap: {
-        title: req.body.title || '',
-        contentText: req.body.contentText,
-        dynamicTag: req.body.dynamicTag,
-        tags: tags.join(' ')
-      },
-      type: 'super_echo',
-      userId: req.userId,
-      targetId: parent._id
-    });
-
-    if (auditResult.blocked) {
-      return res.status(400).json({
-        code: 1,
-        message: '内容包含违规信息，无法发布',
-        data: {
-          matchedWords: auditResult.matchedWords
-        }
-      });
-    }
-
-    const finalFields = auditResult.maskedFieldsMap || {
-      title: req.body.title || '',
-      contentText: req.body.contentText,
-      dynamicTag: req.body.dynamicTag,
-      tags: tags.join(' ')
-    };
-
-    const finalTags = auditResult.maskedFieldsMap
-      ? sanitizeTags(auditResult.maskedFieldsMap.tags.split(' '))
-      : tags;
-
-    const post = await Post.create({
-      title: finalFields.title || '',
-      contentText: finalFields.contentText,
-      contentLink: req.body.linkUrl || '',
-      dynamicTag: finalFields.dynamicTag,
-      tags: finalTags,
-      type: 'super_echo',
-      parentPost: parent._id,
-      author: req.userId
-    });
-
-    await Post.findByIdAndUpdate(parent._id, { $inc: { superEchoCount: 1 } });
-
-    if (parent.author.toString() !== req.userId.toString()) {
-      const notification = await ResonanceNotification.create({
-        recipient: parent.author,
-        post: parent._id,
-        superEcho: post._id,
-        sender: req.userId
-      });
-
-      await notification.populate('sender', 'nickname avatar');
-      await notification.populate('post', 'title dynamicTag');
-
-      try {
-        sendToUser(parent.author.toString(), {
-          type: 'resonance_notify',
-          data: {
-            _id: notification._id,
-            post: notification.post,
-            superEcho: post._id,
-            sender: notification.sender,
-            senderDynamicTag: post.dynamicTag,
-            createdAt: notification.createdAt
-          }
-        });
-      } catch (e) {
-        logger.error(`Push resonance notify error: ${e.message}`);
-      }
-
-      notificationService.createSuperEchoNotification(
-        parent.author,
-        req.userId,
-        parent._id,
-        post._id,
-        post.dynamicTag
-      ).catch((e) => logger.error(`Create super echo notification error: ${e.message}`));
-    }
-
-    logger.info(`Super echo created: ${post._id} -> ${parent._id}, auditAction: ${auditResult.action}`);
-
-    return res.status(201).json({
-      code: 0,
-      data: post,
-      auditInfo: {
-        action: auditResult.action,
-        matchedWords: auditResult.matchedWords
-      }
-    });
-  } catch (error) {
-    logger.error(`Create super echo error: ${error.message}`);
-    return res.status(500).json({ code: 1, message: 'Server error' });
-  }
-};
-
-exports.toggleResonance = async (req, res) => {
-  try {
-    const postId = req.params.id;
-
-    const post = await Post.findById(postId);
-    if (!post) {
-      return res.status(404).json({ code: 1, message: 'Post not found' });
-    }
-
-    const exists = await Resonance.findOne({ post: postId, user: req.userId });
-
-    if (exists) {
-      await Resonance.deleteOne({ _id: exists._id });
-      await Post.findByIdAndUpdate(postId, { $inc: { resonanceCount: -1 } });
-      return res.json({
-        code: 0,
-        data: {
-          resonated: false,
-          resonanceCount: Math.max((post.resonanceCount || 0) - 1, 0)
-        }
-      });
-    }
-
-    await Resonance.create({ post: postId, user: req.userId });
-    await Post.findByIdAndUpdate(postId, { $inc: { resonanceCount: 1 } });
-
-    if (post.author.toString() !== req.userId.toString()) {
-      notificationService.createResonanceNotification(
-        post.author,
-        req.userId,
-        post._id,
-        ''
-      ).catch((e) => logger.error(`Create resonance notification error: ${e.message}`));
-    }
-
-    return res.json({
-      code: 0,
-      data: {
-        resonated: true,
-        resonanceCount: (post.resonanceCount || 0) + 1
-      }
-    });
+    return res.json({ code: 0, data: result });
   } catch (error) {
     if (error.code === 11000) {
       return res.status(400).json({ code: 1, message: 'Already resonated' });
     }
-    logger.error(`Toggle resonance error: ${error.message}`);
-    return res.status(500).json({ code: 1, message: 'Server error' });
+    throw error;
   }
-};
+});
 
-exports.createComment = async (req, res) => {
-  try {
-    const postId = req.params.id;
+exports.createComment = asyncHandler(async (req, res) => {
+  const result = await commentService.createComment({
+    postId: req.params.id,
+    body: req.body,
+    userId: req.userId
+  });
 
-    const post = await Post.findById(postId);
-    if (!post) {
-      return res.status(404).json({ code: 1, message: 'Post not found' });
-    }
+  logger.info(`Comment created: ${result.comment._id} on ${req.params.id}, auditAction: ${result.auditInfo.action}`);
 
-    const auditResult = await auditMultipleFields({
-      fieldsMap: {
-        dynamicTag: req.body.dynamicTag,
-        content: req.body.content
-      },
-      type: 'comment',
-      userId: req.userId,
-      targetId: post._id
-    });
+  return res.status(201).json({
+    code: 0,
+    data: result.comment,
+    ...buildAuditInfo(result.auditInfo)
+  });
+});
 
-    if (auditResult.blocked) {
-      return res.status(400).json({
-        code: 1,
-        message: '内容包含违规信息，无法发布',
-        data: {
-          matchedWords: auditResult.matchedWords
-        }
-      });
-    }
+exports.createCommentReply = asyncHandler(async (req, res) => {
+  const result = await commentService.createCommentReply({
+    postId: req.params.id,
+    commentId: req.params.commentId,
+    body: req.body,
+    userId: req.userId
+  });
 
-    const finalFields = auditResult.maskedFieldsMap || {
-      dynamicTag: req.body.dynamicTag,
-      content: req.body.content
-    };
+  logger.info(`Comment reply created: ${result.reply._id} -> ${req.params.commentId}, auditAction: ${result.auditInfo.action}`);
 
-    const comment = await Comment.create({
-      post: postId,
-      user: req.userId,
-      parentComment: null,
-      dynamicTag: finalFields.dynamicTag,
-      content: finalFields.content
-    });
+  return res.status(201).json({
+    code: 0,
+    data: result.reply,
+    ...buildAuditInfo(result.auditInfo)
+  });
+});
 
-    await Post.findByIdAndUpdate(postId, { $inc: { commentCount: 1 } });
+exports.getMyPosts = asyncHandler(async (req, res) => {
+  const list = await postService.getMyPosts(req.userId);
+  return res.json({ code: 0, data: list });
+});
 
-    await comment.populate('user', 'nickname avatar');
+exports.updatePost = asyncHandler(async (req, res) => {
+  const result = await postService.updatePost({
+    postId: req.params.id,
+    body: req.body,
+    userId: req.userId
+  });
 
-    if (post.author.toString() !== req.userId.toString()) {
-      notificationService.createCommentNotification(
-        post.author,
-        req.userId,
-        post._id,
-        comment._id,
-        finalFields.dynamicTag,
-        finalFields.content
-      ).catch((e) => logger.error(`Create comment notification error: ${e.message}`));
-    }
+  logger.info(`Post updated: ${req.params.id} by ${req.userId}, auditAction: ${result.auditInfo.action}`);
 
-    logger.info(`Comment created: ${comment._id} on ${postId}, auditAction: ${auditResult.action}`);
+  return res.json({
+    code: 0,
+    data: result.updatedPost,
+    ...buildAuditInfo(result.auditInfo)
+  });
+});
 
-    return res.status(201).json({
-      code: 0,
-      data: comment,
-      auditInfo: {
-        action: auditResult.action,
-        matchedWords: auditResult.matchedWords
-      }
-    });
-  } catch (error) {
-    logger.error(`Create comment error: ${error.message}`);
-    return res.status(500).json({ code: 1, message: 'Server error' });
-  }
-};
+exports.deletePost = asyncHandler(async (req, res) => {
+  await postService.deletePost({
+    postId: req.params.id,
+    userId: req.userId
+  });
 
-exports.createCommentReply = async (req, res) => {
-  try {
-    const postId = req.params.id;
-    const parentCommentId = req.params.commentId;
+  logger.info(`Post deleted: ${req.params.id} by ${req.userId}`);
 
-    const post = await Post.findById(postId);
-    if (!post) {
-      return res.status(404).json({ code: 1, message: 'Post not found' });
-    }
-
-    const parentComment = await Comment.findById(parentCommentId);
-    if (!parentComment) {
-      return res.status(404).json({ code: 1, message: 'Parent comment not found' });
-    }
-
-    if (parentComment.parentComment) {
-      return res.status(400).json({ code: 1, message: 'Only one level of reply is allowed' });
-    }
-
-    const auditResult = await auditMultipleFields({
-      fieldsMap: {
-        dynamicTag: req.body.dynamicTag,
-        content: req.body.content
-      },
-      type: 'comment_reply',
-      userId: req.userId,
-      targetId: parentCommentId
-    });
-
-    if (auditResult.blocked) {
-      return res.status(400).json({
-        code: 1,
-        message: '内容包含违规信息，无法发布',
-        data: {
-          matchedWords: auditResult.matchedWords
-        }
-      });
-    }
-
-    const finalFields = auditResult.maskedFieldsMap || {
-      dynamicTag: req.body.dynamicTag,
-      content: req.body.content
-    };
-
-    const reply = await Comment.create({
-      post: postId,
-      user: req.userId,
-      parentComment: parentCommentId,
-      dynamicTag: finalFields.dynamicTag,
-      content: finalFields.content
-    });
-
-    await Post.findByIdAndUpdate(postId, { $inc: { commentCount: 1 } });
-
-    await reply.populate('user', 'nickname avatar');
-    await reply.populate('parentComment', '_id');
-
-    const notifiedUsers = new Set();
-    notifiedUsers.add(req.userId.toString());
-
-    if (post.author.toString() !== req.userId.toString()) {
-      notificationService.createCommentNotification(
-        post.author,
-        req.userId,
-        post._id,
-        reply._id,
-        finalFields.dynamicTag,
-        finalFields.content
-      ).catch((e) => logger.error(`Create comment notification error: ${e.message}`));
-      notifiedUsers.add(post.author.toString());
-    }
-
-    if (parentComment.user.toString() !== req.userId.toString() && !notifiedUsers.has(parentComment.user.toString())) {
-      notificationService.createCommentNotification(
-        parentComment.user,
-        req.userId,
-        post._id,
-        reply._id,
-        finalFields.dynamicTag,
-        finalFields.content
-      ).catch((e) => logger.error(`Create comment reply notification error: ${e.message}`));
-    }
-
-    logger.info(`Comment reply created: ${reply._id} -> ${parentCommentId}, auditAction: ${auditResult.action}`);
-
-    return res.status(201).json({
-      code: 0,
-      data: reply,
-      auditInfo: {
-        action: auditResult.action,
-        matchedWords: auditResult.matchedWords
-      }
-    });
-  } catch (error) {
-    logger.error(`Create comment reply error: ${error.message}`);
-    return res.status(500).json({ code: 1, message: 'Server error' });
-  }
-};
-
-exports.getMyPosts = async (req, res) => {
-  try {
-    const list = await Post.find({ author: req.userId })
-      .sort({ createdAt: -1 })
-      .lean();
-
-    return res.json({ code: 0, data: list });
-  } catch (error) {
-    logger.error(`Get my posts error: ${error.message}`);
-    return res.status(500).json({ code: 1, message: 'Server error' });
-  }
-};
-
-exports.updatePost = async (req, res) => {
-  try {
-    const postId = req.params.id;
-
-    const post = await Post.findById(postId);
-    if (!post) {
-      return res.status(404).json({ code: 1, message: 'Post not found' });
-    }
-
-    if (post.author.toString() !== req.userId.toString()) {
-      return res.status(403).json({ code: 1, message: 'No permission to edit this post' });
-    }
-
-    if (post.type !== 'origin') {
-      return res.status(400).json({ code: 1, message: 'Only origin posts can be edited' });
-    }
-
-    const tags = sanitizeTags(req.body.tags);
-    if (!tags.length) {
-      return res.status(400).json({ code: 1, message: 'At least one tag is required' });
-    }
-
-    const auditResult = await auditMultipleFields({
-      fieldsMap: {
-        title: req.body.title || '',
-        contentText: req.body.contentText,
-        dynamicTag: req.body.dynamicTag,
-        tags: tags.join(' ')
-      },
-      type: 'post',
-      userId: req.userId,
-      targetId: post._id
-    });
-
-    if (auditResult.blocked) {
-      return res.status(400).json({
-        code: 1,
-        message: '内容包含违规信息，无法保存',
-        data: {
-          matchedWords: auditResult.matchedWords
-        }
-      });
-    }
-
-    const finalFields = auditResult.maskedFieldsMap || {
-      title: req.body.title || '',
-      contentText: req.body.contentText,
-      dynamicTag: req.body.dynamicTag,
-      tags: tags.join(' ')
-    };
-
-    const finalTags = auditResult.maskedFieldsMap
-      ? sanitizeTags(auditResult.maskedFieldsMap.tags.split(' '))
-      : tags;
-
-    const updatedPost = await Post.findByIdAndUpdate(
-      postId,
-      {
-        title: finalFields.title || '',
-        contentText: finalFields.contentText,
-        contentAudio: req.body.audioUrl || '',
-        contentLink: req.body.linkUrl || '',
-        coverImage: req.body.coverImage || '',
-        dynamicTag: finalFields.dynamicTag,
-        tags: finalTags,
-        authorSkin: (await User.findById(req.userId).select('tagSkin').lean())?.tagSkin || 'ocean',
-        updatedAt: new Date()
-      },
-      { new: true, runValidators: true }
-    );
-
-    logger.info(`Post updated: ${postId} by ${req.userId}, auditAction: ${auditResult.action}`);
-
-    return res.json({
-      code: 0,
-      data: updatedPost,
-      auditInfo: {
-        action: auditResult.action,
-        matchedWords: auditResult.matchedWords
-      }
-    });
-  } catch (error) {
-    logger.error(`Update post error: ${error.message}`);
-    return res.status(500).json({ code: 1, message: 'Server error' });
-  }
-};
-
-exports.deletePost = async (req, res) => {
-  try {
-    const postId = req.params.id;
-
-    const post = await Post.findById(postId);
-    if (!post) {
-      return res.status(404).json({ code: 1, message: 'Post not found' });
-    }
-
-    if (post.author.toString() !== req.userId.toString()) {
-      return res.status(403).json({ code: 1, message: 'No permission to delete this post' });
-    }
-
-    if (post.type !== 'origin') {
-      return res.status(400).json({ code: 1, message: 'Only origin posts can be deleted' });
-    }
-
-    await Resonance.deleteMany({ post: postId });
-
-    await Comment.deleteMany({ post: postId });
-
-    const superEchoes = await Post.find({ parentPost: postId });
-    for (const echo of superEchoes) {
-      await Resonance.deleteMany({ post: echo._id });
-      await Comment.deleteMany({ post: echo._id });
-    }
-
-    await Post.deleteMany({ parentPost: postId });
-
-    if (post.parentPost) {
-      await Post.findByIdAndUpdate(
-        post.parentPost,
-        { $inc: { superEchoCount: -1 } }
-      );
-    }
-
-    await Post.findByIdAndDelete(postId);
-
-    logger.info(`Post deleted: ${postId} by ${req.userId}`);
-
-    return res.json({ code: 0, data: { message: 'Post deleted successfully' } });
-  } catch (error) {
-    logger.error(`Delete post error: ${error.message}`);
-    return res.status(500).json({ code: 1, message: 'Server error' });
-  }
-};
+  return res.json({ code: 0, data: { message: 'Post deleted successfully' } });
+});
