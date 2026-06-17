@@ -6,7 +6,12 @@
   "scripts": {
     "start": "node src/app.js",
     "dev": "nodemon src/app.js",
-    "seed": "node seed/init.js"
+    "seed": "node seed/init.js",
+    "test": "jest --forceExit --detectOpenHandles --runInBand",
+    "test:unit": "jest tests/unit --forceExit --detectOpenHandles --runInBand",
+    "test:integration": "jest tests/integration --forceExit --detectOpenHandles --runInBand",
+    "test:coverage": "jest --coverage --forceExit --detectOpenHandles --runInBand",
+    "test:watch": "jest --watchAll --forceExit --detectOpenHandles"
   },
   "dependencies": {
     "bcryptjs": "^3.0.2",
@@ -21,6 +26,21 @@
     "winston": "^3.17.0"
   },
   "devDependencies": {
+    "jest": "^29.7.0",
+    "supertest": "^7.0.0",
+    "mongodb-memory-server": "^9.4.0",
     "nodemon": "^3.1.9"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "setupFilesAfterEnv": [
+      "<rootDir>/tests/setup.js"
+    ],
+    "testMatch": [
+      "**/tests/**/*.test.js"
+    ],
+    "testTimeout": 30000,
+    "maxWorkers": 1,
+    "verbose": true
   }
 }
