@@ -173,6 +173,12 @@ const recommendationConfigSchema = new mongoose.Schema(
         type: Number,
         default: 2,
         min: 0
+      },
+      featuredMaxPosts: {
+        type: Number,
+        default: 3,
+        min: 1,
+        max: 10
       }
     }
   },

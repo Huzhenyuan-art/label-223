@@ -101,7 +101,13 @@ Page({
 
       if (activeMode === 'hot' && !activeTag) {
         const hot = await request.get(config.API.HOT_TAGS);
-        const hotTags = hot.list || [];
+        const hotTags = (hot.list || []).map((tagItem) => ({
+          ...tagItem,
+          featuredOriginPosts: (tagItem.featuredOriginPosts || []).map((post) => ({
+            ...post,
+            timeAgo: formatTimeAgo(post.createdAt)
+          }))
+        }));
         this.setData({
           hotTags,
           radarTags: this.buildRadarTags(hotTags)

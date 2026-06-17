@@ -1,5 +1,5 @@
 const mongoose = require('mongoose');
-const { HotListSnapshot, Post } = require('../../models');
+const { HotListSnapshot, Post, Resonance } = require('../../models');
 const configService = require('./configService');
 const logger = require('../../utils/logger');
 
@@ -79,6 +79,69 @@ const buildHotTagsPipeline = (startAt, maxTags, hotConfig) => {
     { $sort: { heat: -1, postCount: -1 } },
     { $limit: maxTags }
   ];
+};
+
+const getTagFeaturedOriginPosts = async (tag, maxPosts = 3) => {
+  try {
+    const oneHourAgo = new Date(Date.now() - 3600000);
+    const twentyFourHoursAgo = new Date(Date.now() - 24 * 3600000);
+
+    const originPosts = await Post.find({
+      tags: tag,
+      type: 'origin',
+      status: 'published',
+      createdAt: { $gte: twentyFourHoursAgo }
+    })
+      .populate('author', 'nickname avatar')
+      .lean();
+
+    if (originPosts.length === 0) {
+      return [];
+    }
+
+    const postIds = originPosts.map((p) => p._id);
+
+    const recentResonanceCounts = await Resonance.aggregate([
+      { $match: { post: { $in: postIds }, createdAt: { $gte: oneHourAgo } } },
+      { $group: { _id: '$post', count: { $sum: 1 } } }
+    ]);
+
+    const resonanceGrowthMap = new Map();
+    recentResonanceCounts.forEach((item) => {
+      resonanceGrowthMap.set(item._id.toString(), item.count);
+    });
+
+    const postsWithGrowth = originPosts.map((post) => {
+      const growth = resonanceGrowthMap.get(post._id.toString()) || 0;
+      return {
+        ...post,
+        resonanceGrowth: growth
+      };
+    });
+
+    postsWithGrowth.sort((a, b) => {
+      if (b.resonanceGrowth !== a.resonanceGrowth) {
+        return b.resonanceGrowth - a.resonanceGrowth;
+      }
+      return new Date(b.createdAt) - new Date(a.createdAt);
+    });
+
+    return postsWithGrowth.slice(0, maxPosts).map((post) => ({
+      _id: post._id,
+      title: post.title,
+      contentText: post.contentText,
+      dynamicTag: post.dynamicTag,
+      author: post.author,
+      resonanceCount: post.resonanceCount,
+      commentCount: post.commentCount,
+      superEchoCount: post.superEchoCount,
+      resonanceGrowth: post.resonanceGrowth,
+      createdAt: post.createdAt
+    }));
+  } catch (error) {
+    logger.error(`[Snapshot] Get featured origin posts for tag ${tag} error: ${error.message}`);
+    return [];
+  }
 };
 
 const createHotPostsSnapshot = async (window, recConfig) => {
@@ -237,6 +300,7 @@ const getLatestSnapshot = async (type, window) => {
 const getHotTags = async (preferredWindow = '1h') => {
   try {
     const recConfig = await configService.getConfig();
+    let result;
 
     if (recConfig.snapshot.enabled) {
       let snapshot = await getLatestSnapshot('tags', preferredWindow);
@@ -246,7 +310,7 @@ const getHotTags = async (preferredWindow = '1h') => {
       }
 
       if (snapshot) {
-        return {
+        result = {
           window: snapshot.window,
           nextUpdateAt: snapshot.expiresAt,
           list: snapshot.items.map((item) => ({
@@ -259,35 +323,53 @@ const getHotTags = async (preferredWindow = '1h') => {
       }
     }
 
-    logger.warn('[Snapshot] No cached hot tags, falling back to live query');
+    if (!result) {
+      logger.warn('[Snapshot] No cached hot tags, falling back to live query');
 
-    const now = Date.now();
-    const windowMs = recConfig.hotTags.windowHours * 3600000;
-    const fallbackMs = recConfig.hotTags.fallbackWindowHours * 3600000;
+      const now = Date.now();
+      const windowMs = recConfig.hotTags.windowHours * 3600000;
+      const fallbackMs = recConfig.hotTags.fallbackWindowHours * 3600000;
 
-    let startAt = new Date(now - windowMs);
-    let pipeline = buildHotTagsPipeline(startAt, recConfig.hotTags.maxTags, recConfig.hotTags);
-    let tags = await Post.aggregate(pipeline);
-    let window = preferredWindow;
+      let startAt = new Date(now - windowMs);
+      let pipeline = buildHotTagsPipeline(startAt, recConfig.hotTags.maxTags, recConfig.hotTags);
+      let tags = await Post.aggregate(pipeline);
+      let window = preferredWindow;
 
-    if (!tags.length) {
-      startAt = new Date(now - fallbackMs);
-      pipeline = buildHotTagsPipeline(startAt, recConfig.hotTags.maxTags, recConfig.hotTags);
-      tags = await Post.aggregate(pipeline);
-      window = '24h';
+      if (!tags.length) {
+        startAt = new Date(now - fallbackMs);
+        pipeline = buildHotTagsPipeline(startAt, recConfig.hotTags.maxTags, recConfig.hotTags);
+        tags = await Post.aggregate(pipeline);
+        window = '24h';
+      }
+
+      const nextUpdateAt = new Date(Math.ceil(now / 3600000) * 3600000);
+
+      result = {
+        window,
+        nextUpdateAt,
+        list: tags.map((item, index) => ({
+          rank: index + 1,
+          tag: item._id,
+          postCount: item.postCount,
+          heat: item.heat
+        }))
+      };
     }
 
-    const nextUpdateAt = new Date(Math.ceil(now / 3600000) * 3600000);
+    const featuredMaxPosts = recConfig.hotTags.featuredMaxPosts || 3;
+    const listWithFeatured = await Promise.all(
+      result.list.map(async (tagItem) => {
+        const featuredPosts = await getTagFeaturedOriginPosts(tagItem.tag, featuredMaxPosts);
+        return {
+          ...tagItem,
+          featuredOriginPosts: featuredPosts
+        };
+      })
+    );
 
     return {
-      window,
-      nextUpdateAt,
-      list: tags.map((item, index) => ({
-        rank: index + 1,
-        tag: item._id,
-        postCount: item.postCount,
-        heat: item.heat
-      }))
+      ...result,
+      list: listWithFeatured
     };
   } catch (error) {
     logger.error(`[Snapshot] Get hot tags error: ${error.message}`);
@@ -381,5 +463,6 @@ module.exports = {
   getLatestSnapshot,
   getHotTags,
   getHotPosts,
+  getTagFeaturedOriginPosts,
   cleanupExpiredSnapshots
 };

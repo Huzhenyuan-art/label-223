@@ -46,7 +46,8 @@ const DEFAULT_CONFIG = {
     fallbackWindowHours: 24,
     maxTags: 12,
     heatBase: 1,
-    superEchoHeatMultiplier: 2
+    superEchoHeatMultiplier: 2,
+    featuredMaxPosts: 3
   }
 };
 

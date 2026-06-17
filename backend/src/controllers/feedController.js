@@ -195,17 +195,74 @@ const getLegacyHotTags = async (req, res) => {
 
   const nextUpdateAt = new Date(Math.ceil(Date.now() / 3600000) * 3600000);
 
+  const listWithFeatured = await Promise.all(
+    tags.map(async (item, index) => {
+      const tag = item._id;
+      const twentyFourHoursAgo = new Date(Date.now() - 24 * 3600000);
+      const originPosts = await Post.find({
+        tags: tag,
+        type: 'origin',
+        status: 'published',
+        createdAt: { $gte: twentyFourHoursAgo }
+      })
+        .populate('author', 'nickname avatar')
+        .lean();
+
+      let featuredOriginPosts = [];
+      if (originPosts.length > 0) {
+        const postIds = originPosts.map((p) => p._id);
+        const recentResonanceCounts = await Resonance.aggregate([
+          { $match: { post: { $in: postIds }, createdAt: { $gte: oneHourAgo } } },
+          { $group: { _id: '$post', count: { $sum: 1 } } }
+        ]);
+
+        const resonanceGrowthMap = new Map();
+        recentResonanceCounts.forEach((r) => {
+          resonanceGrowthMap.set(r._id.toString(), r.count);
+        });
+
+        const postsWithGrowth = originPosts.map((post) => ({
+          ...post,
+          resonanceGrowth: resonanceGrowthMap.get(post._id.toString()) || 0
+        }));
+
+        postsWithGrowth.sort((a, b) => {
+          if (b.resonanceGrowth !== a.resonanceGrowth) {
+            return b.resonanceGrowth - a.resonanceGrowth;
+          }
+          return new Date(b.createdAt) - new Date(a.createdAt);
+        });
+
+        featuredOriginPosts = postsWithGrowth.slice(0, 3).map((post) => ({
+          _id: post._id,
+          title: post.title,
+          contentText: post.contentText,
+          dynamicTag: post.dynamicTag,
+          author: post.author,
+          resonanceCount: post.resonanceCount,
+          commentCount: post.commentCount,
+          superEchoCount: post.superEchoCount,
+          resonanceGrowth: post.resonanceGrowth,
+          createdAt: post.createdAt
+        }));
+      }
+
+      return {
+        rank: index + 1,
+        tag: item._id,
+        postCount: item.postCount,
+        heat: item.heat,
+        featuredOriginPosts
+      };
+    })
+  );
+
   return res.json({
     code: 0,
     data: {
       window,
       nextUpdateAt: nextUpdateAt.toISOString(),
-      list: tags.map((item, index) => ({
-        rank: index + 1,
-        tag: item._id,
-        postCount: item.postCount,
-        heat: item.heat
-      })),
+      list: listWithFeatured,
       legacy: true
     }
   });

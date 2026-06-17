@@ -93,6 +93,24 @@
         </view>
         <view class="muted">热度 {{item.heat}}</view>
       </view>
+      <view wx:if="{{item.featuredOriginPosts.length}}" class="featured-posts">
+        <view class="featured-header">标签内精选原频 · 近1小时共鸣增速</view>
+        <block wx:for="{{item.featuredOriginPosts}}" wx:for-item="post" wx:key="_id">
+          <view class="featured-post-item" data-id="{{post._id}}" bindtap="goDetail">
+            <view class="row-between featured-post-meta">
+              <view class="featured-post-tag">{{post.dynamicTag}}</view>
+              <view class="muted">{{post.timeAgo}}</view>
+            </view>
+            <view wx:if="{{post.title}}" class="featured-post-title">{{post.title}}</view>
+            <view class="featured-post-content">{{post.contentText}}</view>
+            <view class="row-between featured-post-stats">
+              <view class="muted">共鸣 {{post.resonanceCount}} · 回声 {{post.commentCount}} · 合鸣 {{post.superEchoCount}}</view>
+              <view class="growth-badge" wx:if="{{post.resonanceGrowth > 0}}">+{{post.resonanceGrowth}} 增速</view>
+              <view class="growth-badge flat" wx:else>0 增速</view>
+            </view>
+          </view>
+        </block>
+      </view>
     </block>
   </view>
 
