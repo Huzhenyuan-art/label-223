@@ -302,9 +302,12 @@ const getConversationMessages = async ({ conversationId, userId, page, limit }) 
     { read: true }
   );
 
-  pushUnread(userId).catch((e) =>
-    logger.error(`Push unread on get messages error: ${e.message}`)
-  );
+  const pushUnread = _getPushUnread();
+  if (pushUnread) {
+    pushUnread(userId).catch((e) =>
+      logger.error(`Push unread on get messages error: ${e.message}`)
+    );
+  }
 
   const otherTempName = reveal.tempNicknames?.[otherUserId] || '同频回声';
   let maskedList;

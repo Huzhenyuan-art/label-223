@@ -80,3 +80,70 @@ const { list: enrichedPosts, viewerPremium } = await attachInteractionState(post
 1. **重构函数返回结构时**，务必全局搜索所有调用点并逐一修改
 2. **多文件存在同名函数时**（如 feedController 和 tagChannelController 各自的 `attachInteractionState`），需全部同步更新
 3. 建议后续将 `attachInteractionState` 抽成公共 util，避免多份实现不同步
+
+---
+
+# FIX 2 - 私信对话页面接口报错无法加载历史消息
+
+## 问题描述
+
+用户打开任意私信对话页面时接口报错，无法加载历史消息。预期应该正常展示聊天记录和发送入口，但页面完全不可用。
+
+## 根因分析
+
+在重构 `messageService.js` 时，为了解决循环依赖问题（`messageService` → `websocket` → `messageHandler` → `messageService`），将顶部的直接导入 `const { pushUnread } = require('../websocket')` 改为延迟导入模式：
+
+```js
+const _getPushUnread = () => {
+  const { pushUnread } = require('../websocket');
+  return pushUnread;
+};
+```
+
+`sendMessage` 函数已正确使用延迟导入模式调用 `_getPushUnread()`，但 `getConversationMessages` 函数中仍残留旧代码，直接调用了 `pushUnread(userId)`。由于 `pushUnread` 在该作用域中未定义（`ReferenceError: pushUnread is not defined`），导致整个接口抛出 500 错误。
+
+## 涉及文件
+
+### backend/src/services/messageService.js
+
+**问题位置**：`getConversationMessages` 函数（第 305 行）
+
+**修复前**：
+```js
+await Message.updateMany(
+  { conversationId, receiver: userId, read: false },
+  { read: true }
+);
+
+pushUnread(userId).catch((e) =>
+  logger.error(`Push unread on get messages error: ${e.message}`)
+);
+```
+
+**修复后**：
+```js
+await Message.updateMany(
+  { conversationId, receiver: userId, read: false },
+  { read: true }
+);
+
+const pushUnread = _getPushUnread();
+if (pushUnread) {
+  pushUnread(userId).catch((e) =>
+    logger.error(`Push unread on get messages error: ${e.message}`)
+  );
+}
+```
+
+## 验证清单
+
+- [x] 私信对话页面接口正常返回历史消息
+- [x] 已读标记正常更新
+- [x] WebSocket 未读推送正常工作
+- [x] 全部 189 个测试通过（单元测试 52 + 集成测试 137）
+
+## 预防措施
+
+1. **重构导入方式时**，必须全局搜索该变量在本文件中的所有使用位置，逐一替换
+2. **延迟导入模式应保持一致性**，同一文件中对同一模块的引用应统一使用 `_getXxx()` 模式，避免混用直接引用和延迟引用
+3. 建议在模块顶部使用 ESLint `no-undef` 规则，在严格模式下可捕获未定义变量的引用
