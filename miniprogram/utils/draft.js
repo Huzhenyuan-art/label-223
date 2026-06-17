@@ -178,6 +178,54 @@ const getDraftPreview = (draft) => {
   };
 };
 
+const PUBLISH_PENDING_KEY = 'publish_pending_params';
+
+const setPublishPendingParams = (params) => {
+  try {
+    wx.setStorageSync(PUBLISH_PENDING_KEY, {
+      params,
+      createdAt: Date.now()
+    });
+    return true;
+  } catch (e) {
+    return false;
+  }
+};
+
+const consumePublishPendingParams = () => {
+  try {
+    const wrapped = wx.getStorageSync(PUBLISH_PENDING_KEY);
+    if (!wrapped || typeof wrapped !== 'object') return null;
+    wx.removeStorageSync(PUBLISH_PENDING_KEY);
+    if (Date.now() - (wrapped.createdAt || 0) > 5 * 60 * 1000) {
+      return null;
+    }
+    return wrapped.params || null;
+  } catch (e) {
+    return null;
+  }
+};
+
+const switchTabToPublish = (params) => {
+  if (params && typeof params === 'object' && Object.keys(params).length > 0) {
+    setPublishPendingParams(params);
+  }
+  return new Promise((resolve) => {
+    wx.switchTab({
+      url: '/pages/publish/publish',
+      success: () => resolve(true),
+      fail: (err) => {
+        console.error('[draft] switchTabToPublish fail:', err);
+        wx.navigateTo({
+          url: '/pages/publish/publish',
+          success: () => resolve(true),
+          fail: () => resolve(false)
+        });
+      }
+    });
+  });
+};
+
 module.exports = {
   AUTO_SAVE_INTERVAL_MS,
   listDrafts,
@@ -190,5 +238,8 @@ module.exports = {
   getDraftPreview,
   getAutoSaveDraft,
   setAutoSaveDraft,
-  clearAutoSaveDraft
+  clearAutoSaveDraft,
+  setPublishPendingParams,
+  consumePublishPendingParams,
+  switchTabToPublish
 };

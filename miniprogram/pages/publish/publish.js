@@ -18,7 +18,8 @@ const {
   setAutoSaveDraft,
   getAutoSaveDraft,
   clearAutoSaveDraft,
-  buildDraft
+  buildDraft,
+  consumePublishPendingParams
 } = require('../../utils/draft');
 
 const isValidMediaUrl = (url, type) => {
@@ -89,13 +90,35 @@ Page({
         pageSubtitle: '从草稿恢复编辑，完成后可正式发射频率。',
         submitText: '发射频率'
       });
-      this.loadDraft(options.draftId);
+      this.pendingLoadDraftId = options.draftId;
     }
   },
 
   async onShow() {
     ensureLogin();
     this.setupNetworkListener();
+
+    const pending = consumePublishPendingParams();
+    if (pending && pending.draftId) {
+      this.setData({
+        draftId: pending.draftId,
+        isDraftMode: true,
+        pageTitle: '编辑草稿',
+        pageSubtitle: '从草稿恢复编辑，完成后可正式发射频率。',
+        submitText: '发射频率'
+      });
+      this.pendingLoadDraftId = pending.draftId;
+    } else if (pending && pending.fresh) {
+      this.resetPageForFresh();
+    }
+
+    if (this.pendingLoadDraftId) {
+      const idToLoad = this.pendingLoadDraftId;
+      this.pendingLoadDraftId = null;
+      await this.loadDraft(idToLoad);
+      this.startAutoSave();
+      return;
+    }
 
     if (this.data.isEditMode && this.data.editId && !this.data.contentText && !this.data.isDraftMode) {
       await this.loadPostForEdit();
@@ -104,6 +127,34 @@ Page({
     }
 
     this.startAutoSave();
+  },
+
+  resetPageForFresh() {
+    this.setData({
+      editId: '',
+      isEditMode: false,
+      draftId: '',
+      isDraftMode: false,
+      pageTitle: '频率发射站',
+      pageSubtitle: '每条内容都可以使用新的动态标签，自由表达不被固定身份束缚。',
+      submitText: '发射频率',
+      title: '',
+      contentText: '',
+      dynamicTag: '#深夜哲学家',
+      tagsInput: '成长,情绪',
+      audioUrl: '',
+      audioName: '',
+      audioSize: '',
+      linkUrl: '',
+      coverImage: '',
+      coverImageName: '',
+      coverImageSize: '',
+      oldCoverImage: '',
+      oldAudioUrl: '',
+      lastAutoSavedAt: '',
+      recoveredFromAutoSave: false
+    });
+    clearAutoSaveDraft();
   },
 
   onHide() {

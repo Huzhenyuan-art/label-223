@@ -1,5 +1,5 @@
-const { listDrafts, deleteDraft, getDraftPreview, clearAllDrafts } = require('../../utils/draft');
-const { ensureLogin, formatDateLabel, safeNavigateTo, showFriendlyError } = require('../../utils/util');
+const { listDrafts, deleteDraft, getDraftPreview, clearAllDrafts, switchTabToPublish } = require('../../utils/draft');
+const { ensureLogin, formatDateLabel, showFriendlyError } = require('../../utils/util');
 
 Page({
   data: {
@@ -52,11 +52,11 @@ Page({
       return;
     }
     const draftId = event.currentTarget.dataset.id;
-    safeNavigateTo(`/pages/publish/publish?draftId=${draftId}`);
+    switchTabToPublish({ draftId });
   },
 
   openActions(event) {
-    event.stopPropagation && event.stopPropagation();
+    if (event.stopPropagation) event.stopPropagation();
     const draftId = event.currentTarget.dataset.id;
     this.setData({
       showActions: true,
@@ -72,7 +72,7 @@ Page({
     const draftId = this.data.actionDraftId;
     this.setData({ showActions: false, actionDraftId: '' });
     if (draftId) {
-      safeNavigateTo(`/pages/publish/publish?draftId=${draftId}`);
+      switchTabToPublish({ draftId });
     }
   },
 
@@ -80,7 +80,7 @@ Page({
     const draftId = this.data.actionDraftId;
     this.setData({ showActions: false, actionDraftId: '' });
     if (draftId) {
-      safeNavigateTo(`/pages/publish/publish?draftId=${draftId}`);
+      switchTabToPublish({ draftId });
     }
   },
 
@@ -119,7 +119,7 @@ Page({
   },
 
   goCreateNew() {
-    safeNavigateTo('/pages/publish/publish');
+    switchTabToPublish({ fresh: true });
   },
 
   confirmClearAll() {
