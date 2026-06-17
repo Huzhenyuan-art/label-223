@@ -1,6 +1,7 @@
 const request = require('../../utils/request');
 const config = require('../../config/index');
 const { ensureLogin, formatTimeAgo, showFriendlyError, goToLogin, safeNavigateTo } = require('../../utils/util');
+const { listDrafts } = require('../../utils/draft');
 
 Page({
   data: {
@@ -16,7 +17,8 @@ Page({
     unreadNotificationCount: 0,
     resonanceNotifyLoading: false,
     loading: false,
-    loadFailed: false
+    loadFailed: false,
+    draftCount: 0
   },
 
   onShow() {
@@ -35,12 +37,27 @@ Page({
         unreadNotificationCount: 0,
         resonanceNotifyLoading: false,
         loading: false,
-        loadFailed: false
+        loadFailed: false,
+        draftCount: 0
       });
       return;
     }
     this.loadData();
     this.refreshNotificationCount();
+    this.loadDraftCount();
+  },
+
+  loadDraftCount() {
+    try {
+      const drafts = listDrafts();
+      this.setData({ draftCount: drafts.length });
+    } catch (e) {
+      this.setData({ draftCount: 0 });
+    }
+  },
+
+  goDrafts() {
+    safeNavigateTo('/pages/drafts/drafts');
   },
 
   async loadData() {

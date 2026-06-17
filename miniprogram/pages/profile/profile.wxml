@@ -116,6 +116,17 @@
     <view wx:else class="muted">你还没有收藏内容。</view>
   </view>
 
+  <view class="ocean-card" bindtap="goDrafts">
+    <view class="row-between">
+      <view class="section-title">草稿箱</view>
+      <view class="entry-arrow">›</view>
+    </view>
+    <view class="muted">
+      <block wx:if="{{draftCount > 0}}">{{draftCount}} 篇草稿待发布</block>
+      <block wx:else>暂无草稿</block>
+    </view>
+  </view>
+
   <view class="ocean-card">
     <view class="section-title">我的频率</view>
     <block wx:if="{{myPosts.length}}">

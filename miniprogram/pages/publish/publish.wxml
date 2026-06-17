@@ -2,8 +2,22 @@
 
 <view class="container" wx:else>
   <view class="hero-card">
-    <view class="hero-title">{{pageTitle}}</view>
-    <view class="hero-subtitle">{{pageSubtitle}}</view>
+    <view class="row-between">
+      <view>
+        <view class="hero-title">{{pageTitle}}</view>
+        <view class="hero-subtitle">{{pageSubtitle}}</view>
+      </view>
+      <view class="draft-entry" bindtap="goDraftList">
+        <text class="draft-entry-icon">📝</text>
+        <text class="draft-entry-text">草稿箱</text>
+      </view>
+    </view>
+    <view wx:if="{{lastAutoSavedAt && !isEditMode}}" class="autosave-hint">
+      · 已自动保存于 {{lastAutoSavedAt}}
+    </view>
+    <view wx:if="{{recoveredFromAutoSave}}" class="autosave-hint recovered">
+      · 已从自动保存恢复
+    </view>
   </view>
 
   <view class="ocean-card">
@@ -96,5 +110,8 @@
     </view>
   </view>
 
-  <button class="btn-primary" bindtap="submitPost" loading="{{submitting}}">{{submitText}}</button>
+  <view class="action-buttons">
+    <button class="btn-secondary" bindtap="saveCurrentToDrafts" wx:if="{{!isEditMode}}">保存到草稿箱</button>
+    <button class="btn-primary" bindtap="submitPost" loading="{{submitting}}">{{submitText}}</button>
+  </view>
 </view>

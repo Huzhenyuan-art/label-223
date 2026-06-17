@@ -1,6 +1,6 @@
 const request = require('../../utils/request');
 const config = require('../../config/index');
-const { parseTagsInput, ensureLogin, showFriendlyError, safeRedirectTo } = require('../../utils/util');
+const { parseTagsInput, ensureLogin, showFriendlyError, safeRedirectTo, safeNavigateTo, formatDateLabel } = require('../../utils/util');
 const {
   chooseAndUploadImage,
   chooseAndUploadAudio,
@@ -9,6 +9,17 @@ const {
   isImageFile,
   isAudioFile
 } = require('../../utils/upload');
+const {
+  AUTO_SAVE_INTERVAL_MS,
+  getDraft,
+  saveDraft,
+  deleteDraft,
+  isDraftEmpty,
+  setAutoSaveDraft,
+  getAutoSaveDraft,
+  clearAutoSaveDraft,
+  buildDraft
+} = require('../../utils/draft');
 
 const isValidMediaUrl = (url, type) => {
   if (!url) return true;
@@ -27,6 +38,8 @@ Page({
   data: {
     editId: '',
     isEditMode: false,
+    draftId: '',
+    isDraftMode: false,
     pageTitle: '频率发射站',
     pageSubtitle: '每条内容都可以使用新的动态标签，自由表达不被固定身份束缚。',
     submitText: '发射频率',
@@ -49,7 +62,12 @@ Page({
     uploadingAudio: false,
     audioUploadProgress: 0,
     oldCoverImage: '',
-    oldAudioUrl: ''
+    oldAudioUrl: '',
+    autoSaveTimer: null,
+    lastAutoSavedAt: '',
+    autoSaveToastShown: false,
+    networkOnline: true,
+    recoveredFromAutoSave: false
   },
 
   onLoad(options) {
@@ -62,13 +80,175 @@ Page({
         submitText: '保存修改'
       });
     }
+
+    if (options.draftId) {
+      this.setData({
+        draftId: options.draftId,
+        isDraftMode: true,
+        pageTitle: '编辑草稿',
+        pageSubtitle: '从草稿恢复编辑，完成后可正式发射频率。',
+        submitText: '发射频率'
+      });
+      this.loadDraft(options.draftId);
+    }
   },
 
   async onShow() {
     ensureLogin();
-    if (this.data.isEditMode && this.data.editId && !this.data.contentText) {
+    this.setupNetworkListener();
+
+    if (this.data.isEditMode && this.data.editId && !this.data.contentText && !this.data.isDraftMode) {
       await this.loadPostForEdit();
+    } else if (!this.data.isDraftMode && !this.data.isEditMode && !this.data.contentText) {
+      await this.checkAutoSaveRecovery();
     }
+
+    this.startAutoSave();
+  },
+
+  onHide() {
+    this.performAutoSave();
+    this.stopAutoSave();
+  },
+
+  onUnload() {
+    this.performAutoSave();
+    this.stopAutoSave();
+  },
+
+  setupNetworkListener() {
+    if (wx.onNetworkStatusChange) {
+      wx.onNetworkStatusChange((res) => {
+        const wasOffline = !this.data.networkOnline;
+        this.setData({ networkOnline: res.isConnected });
+        if (wasOffline && res.isConnected) {
+          wx.showToast({ title: '网络已恢复', icon: 'success' });
+        } else if (!res.isConnected) {
+          wx.showToast({ title: '当前处于离线状态，内容已自动保存', icon: 'none' });
+        }
+      });
+    }
+  },
+
+  startAutoSave() {
+    if (this.data.autoSaveTimer) return;
+    const timer = setInterval(() => {
+      this.performAutoSave();
+    }, AUTO_SAVE_INTERVAL_MS);
+    this.setData({ autoSaveTimer: timer });
+  },
+
+  stopAutoSave() {
+    if (this.data.autoSaveTimer) {
+      clearInterval(this.data.autoSaveTimer);
+      this.setData({ autoSaveTimer: null });
+    }
+  },
+
+  performAutoSave() {
+    if (this.data.submitting || this.data.uploadingCover || this.data.uploadingAudio) return;
+    if (this.data.isEditMode) return;
+
+    const snapshot = this.collectDraftSnapshot();
+    if (isDraftEmpty(snapshot)) return;
+
+    snapshot.isAutoSaved = true;
+    setAutoSaveDraft(snapshot);
+
+    if (this.data.isDraftMode && this.data.draftId) {
+      snapshot._id = this.data.draftId;
+      saveDraft(snapshot);
+    }
+
+    this.setData({
+      lastAutoSavedAt: formatDateLabel(new Date(), true)
+    });
+  },
+
+  collectDraftSnapshot() {
+    return {
+      _id: this.data.draftId || undefined,
+      title: this.data.title,
+      contentText: this.data.contentText,
+      dynamicTag: this.data.dynamicTag,
+      tagsInput: this.data.tagsInput,
+      audioUrl: this.data.audioUrl,
+      audioName: this.data.audioName,
+      audioSize: this.data.audioSize,
+      linkUrl: this.data.linkUrl,
+      coverImage: this.data.coverImage,
+      coverImageName: this.data.coverImageName,
+      coverImageSize: this.data.coverImageSize
+    };
+  },
+
+  async checkAutoSaveRecovery() {
+    const autoSaved = getAutoSaveDraft();
+    if (!autoSaved || isDraftEmpty(autoSaved)) {
+      clearAutoSaveDraft();
+      return;
+    }
+
+    return new Promise((resolve) => {
+      wx.showModal({
+        title: '发现未发布的内容',
+        content: '检测到上次编辑的频率内容尚未发布，是否继续编辑？',
+        confirmText: '继续编辑',
+        cancelText: '放弃',
+        success: (res) => {
+          if (res.confirm) {
+            this.applyDraftToPage(autoSaved);
+            this.setData({
+              recoveredFromAutoSave: true,
+              isDraftMode: true,
+              draftId: autoSaved._id || '',
+              pageTitle: '继续编辑',
+              pageSubtitle: '从自动保存恢复，完成后可正式发射频率。'
+            });
+            wx.showToast({ title: '已恢复上次编辑内容', icon: 'success' });
+          } else {
+            clearAutoSaveDraft();
+          }
+          resolve();
+        },
+        fail: () => resolve()
+      });
+    });
+  },
+
+  async loadDraft(draftId) {
+    this.setData({ loading: true });
+    try {
+      const draft = getDraft(draftId);
+      if (draft) {
+        this.applyDraftToPage(draft);
+      } else {
+        wx.showToast({ title: '草稿不存在或已删除', icon: 'none' });
+        setTimeout(() => wx.navigateBack(), 1500);
+      }
+    } catch (error) {
+      showFriendlyError(error, '加载草稿失败');
+    } finally {
+      this.setData({ loading: false });
+    }
+  },
+
+  applyDraftToPage(draft) {
+    this.setData({
+      title: draft.title || '',
+      contentText: draft.contentText || '',
+      dynamicTag: draft.dynamicTag || '#深夜哲学家',
+      tagsInput: draft.tagsInput || '',
+      audioUrl: draft.audioUrl || '',
+      audioName: draft.audioName || '',
+      audioSize: draft.audioSize || '',
+      linkUrl: draft.linkUrl || '',
+      coverImage: draft.coverImage || '',
+      coverImageName: draft.coverImageName || '',
+      coverImageSize: draft.coverImageSize || '',
+      oldCoverImage: draft.coverImage || '',
+      oldAudioUrl: draft.audioUrl || ''
+    });
   },
 
   async loadPostForEdit() {
@@ -119,6 +299,30 @@ Page({
   bindField(event) {
     const key = event.currentTarget.dataset.key;
     this.setData({ [key]: event.detail.value });
+  },
+
+  goDraftList() {
+    this.stopAutoSave();
+    safeNavigateTo('/pages/drafts/drafts');
+  },
+
+  saveCurrentToDrafts() {
+    const snapshot = this.collectDraftSnapshot();
+    if (isDraftEmpty(snapshot)) {
+      wx.showToast({ title: '内容为空，无法保存草稿', icon: 'none' });
+      return;
+    }
+    if (this.data.draftId) {
+      snapshot._id = this.data.draftId;
+    }
+    const result = saveDraft(snapshot);
+    if (result.saved) {
+      if (!this.data.draftId) {
+        this.setData({ draftId: result.draft._id, isDraftMode: true });
+      }
+      clearAutoSaveDraft();
+      wx.showToast({ title: '已保存到草稿箱', icon: 'success' });
+    }
   },
 
   async onChooseCover() {
@@ -289,6 +493,7 @@ Page({
     };
 
     this.setData({ submitting: true });
+    this.stopAutoSave();
 
     try {
       let post;
@@ -298,6 +503,11 @@ Page({
       } else {
         post = await request.post(config.API.CREATE_POST, postData);
         wx.showToast({ title: '频率发射成功', icon: 'success' });
+
+        if (this.data.draftId) {
+          deleteDraft(this.data.draftId);
+        }
+        clearAutoSaveDraft();
 
         this.setData({
           title: '',
@@ -311,14 +521,46 @@ Page({
           coverImageName: '',
           coverImageSize: '',
           oldCoverImage: '',
-          oldAudioUrl: ''
+          oldAudioUrl: '',
+          draftId: '',
+          isDraftMode: false,
+          recoveredFromAutoSave: false
         });
       }
 
       safeRedirectTo(`/pages/detail/detail?id=${post._id}`);
     } catch (error) {
-      const fallbackMsg = this.data.isEditMode ? '保存失败，请稍后重试' : '发射失败，请稍后重试';
-      showFriendlyError(error, fallbackMsg);
+      const authExpired = error?.statusCode === 401;
+      const networkError = !error || error.errMsg === 'request:fail' || (error.statusCode && error.statusCode >= 500);
+
+      if (networkError && !authExpired) {
+        const snapshot = this.collectDraftSnapshot();
+        if (!isDraftEmpty(snapshot)) {
+          if (this.data.draftId) {
+            snapshot._id = this.data.draftId;
+          }
+          const saveResult = saveDraft(snapshot);
+          if (saveResult.saved && !this.data.draftId) {
+            this.setData({ draftId: saveResult.draft._id, isDraftMode: true });
+          }
+        }
+        this.startAutoSave();
+        wx.showModal({
+          title: '网络异常，已保存为草稿',
+          content: '当前网络不可用，内容已保存到草稿箱，稍后可从草稿箱恢复发布。',
+          showCancel: false,
+          confirmText: '查看草稿箱',
+          success: (res) => {
+            if (res.confirm) {
+              safeNavigateTo('/pages/drafts/drafts');
+            }
+          }
+        });
+      } else {
+        const fallbackMsg = this.data.isEditMode ? '保存失败，请稍后重试' : '发射失败，请稍后重试';
+        showFriendlyError(error, fallbackMsg);
+        this.startAutoSave();
+      }
     } finally {
       this.setData({ submitting: false });
     }

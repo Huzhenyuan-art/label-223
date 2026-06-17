@@ -1,0 +1,67 @@
+<view class="container">
+  <view class="hero-card">
+    <view class="row-between">
+      <view>
+        <view class="hero-title">草稿箱</view>
+        <view class="hero-subtitle">
+          <block wx:if="{{!isEmpty}}">共 {{drafts.length}} 篇草稿，点击可继续编辑</block>
+          <block wx:else>暂未保存草稿</block>
+        </view>
+      </view>
+      <view wx:if="{{!isEmpty}}" class="clear-all-btn" catchtap="confirmClearAll">
+        清空
+      </view>
+    </view>
+  </view>
+
+  <view wx:if="{{loading}}" class="empty">正在加载草稿...</view>
+
+  <view wx:elif="{{isEmpty}}" class="empty-state">
+    <view class="empty-icon">📝</view>
+    <view class="empty-title">草稿箱是空的</view>
+    <view class="empty-desc">在发射页编辑内容时，每 5 秒会自动保存。也可以手动点击"保存到草稿箱"。</view>
+    <button class="btn-primary mt-24" bindtap="goCreateNew">去发射频率</button>
+  </view>
+
+  <block wx:else>
+    <block wx:for="{{drafts}}" wx:key="_id">
+      <view
+        class="draft-card {{actionDraftId === item._id && showActions ? 'active' : ''}}"
+        data-id="{{item._id}}"
+        bindtap="goEditDraft"
+        catchlongpress="openActions"
+      >
+        <view class="draft-head">
+          <view class="draft-tag">{{item.previewTag || '#未命名标签'}}</view>
+          <view class="draft-time muted">{{item.updatedLabel}}</view>
+        </view>
+        <view class="draft-title">{{item.previewTitle}}</view>
+        <view wx:if="{{item.previewSummary}}" class="draft-summary">{{item.previewSummary}}</view>
+        <view class="draft-meta">
+          <view wx:if="{{item.hasCover}}" class="meta-badge">📷 封面</view>
+          <view wx:if="{{item.hasAudio}}" class="meta-badge">🎵 音频</view>
+          <view wx:if="{{item.hasLink}}" class="meta-badge">🔗 链接</view>
+          <view class="meta-badge created">创建于 {{item.createdLabel}}</view>
+        </view>
+        <view wx:if="{{actionDraftId === item._id && showActions}}" class="action-popup" catchtap="preventBubble">
+          <view class="action-popup-item primary" catchtap="publishDraft" data-id="{{item._id}}">
+            🚀 编辑并发布
+          </view>
+          <view class="action-popup-item" catchtap="editDraft" data-id="{{item._id}}">
+            ✏️ 继续编辑
+          </view>
+          <view class="action-popup-item danger" catchtap="confirmDeleteDraft" data-id="{{item._id}}">
+            🗑️ 删除草稿
+          </view>
+          <view class="action-popup-item cancel" catchtap="closeActions">
+            取消
+          </view>
+        </view>
+      </view>
+    </block>
+
+    <view class="tip-card muted">
+      <view>💡 提示：长按草稿可弹出操作菜单</view>
+    </view>
+  </block>
+</view>

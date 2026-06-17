@@ -88,7 +88,8 @@ const SUB_PAGES = [
   '/pages/myItems/myItems',
   '/pages/transactions/transactions',
   '/pages/tagChannels/tagChannels',
-  '/pages/tagChannel/tagChannel'
+  '/pages/tagChannel/tagChannel',
+  '/pages/drafts/drafts'
 ];
 
 const getPagePath = (url) => url.split('?')[0].replace(/^\//, '');
