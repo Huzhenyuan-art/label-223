@@ -18,11 +18,14 @@ const normalizeTag = (tag) => {
 
 const attachInteractionState = async (posts, userId) => {
   if (!userId || !posts.length) {
-    return posts.map((post) => ({
-      ...post,
-      isResonated: false,
-      isFavorited: false
-    }));
+    return {
+      list: posts.map((post) => ({
+        ...post,
+        isResonated: false,
+        isFavorited: false
+      })),
+      viewerPremium: false
+    };
   }
 
   const ids = posts.map((item) => item._id);
@@ -31,7 +34,7 @@ const attachInteractionState = async (posts, userId) => {
     Resonance.find({ user: userId, post: { $in: ids } })
       .select('post')
       .lean(),
-    User.findById(userId).select('favoritePosts').lean()
+    User.findById(userId).select('favoritePosts premium').lean()
   ]);
 
   const resonanceSet = new Set(
@@ -41,11 +44,21 @@ const attachInteractionState = async (posts, userId) => {
     (user?.favoritePosts || []).map((item) => item.toString())
   );
 
-  return posts.map((post) => ({
-    ...post,
-    isResonated: resonanceSet.has(post._id.toString()),
-    isFavorited: favoriteSet.has(post._id.toString())
-  }));
+  const now = Date.now();
+  const viewerPremium = Boolean(
+    user?.premium?.isActive &&
+    user.premium.expireAt &&
+    new Date(user.premium.expireAt).getTime() > now
+  );
+
+  return {
+    list: posts.map((post) => ({
+      ...post,
+      isResonated: resonanceSet.has(post._id.toString()),
+      isFavorited: favoriteSet.has(post._id.toString())
+    })),
+    viewerPremium
+  };
 };
 
 const ensureTagChannel = async (tagName) => {
@@ -502,7 +515,7 @@ exports.getTagPosts = async (req, res) => {
 
     const [posts, total, channel, subscription] = await Promise.all([
       Post.find(filter)
-        .populate('author', 'nickname avatar')
+        .populate('author', 'nickname avatar tagSkin')
         .sort({ createdAt: -1 })
         .skip((page - 1) * limit)
         .limit(limit)
@@ -512,7 +525,7 @@ exports.getTagPosts = async (req, res) => {
       userId ? UserTagSubscription.findOne({ user: userId, tag }).lean() : null
     ]);
 
-    const enrichedPosts = await attachInteractionState(posts, userId);
+    const { list: enrichedPosts, viewerPremium } = await attachInteractionState(posts, userId);
 
     if (userId && subscription) {
       await UserTagSubscription.updateOne(
@@ -536,6 +549,7 @@ exports.getTagPosts = async (req, res) => {
         postCount: total,
         isSubscribed: !!subscription,
         list: enrichedPosts,
+        viewerPremium,
         pagination: {
           page,
           limit,

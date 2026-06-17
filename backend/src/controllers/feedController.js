@@ -393,7 +393,7 @@ exports.getPostDetail = async (req, res) => {
         )
       }));
 
-    const [enrichedResult] = await attachInteractionState(
+    const enrichedResult = await attachInteractionState(
       [post],
       req.userId
     );
